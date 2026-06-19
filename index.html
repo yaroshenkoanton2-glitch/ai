@@ -3,495 +3,251 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ВВЭР-1200 — Реактор нового поколения</title>
+  <title>FitPlan — Персональный план тренировок на 3 месяца</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <!-- HEADER -->
-  <header class="hero">
-    <nav class="navbar">
-      <div class="logo">ВВЭР<span>-1200</span></div>
-      <ul class="nav-links">
-        <li><a href="#overview">Обзор</a></li>
-        <li><a href="#specs">Характеристики</a></li>
-        <li><a href="#safety">Безопасность</a></li>
-        <li><a href="#design">Устройство</a></li>
-        <li><a href="#projects">Проекты</a></li>
-        <li><a href="#comparison">Сравнение</a></li>
-      </ul>
-    </nav>
-
-    <div class="hero-content">
-      <div class="hero-badge">Поколение III+</div>
-      <h1>ВВЭР-1200</h1>
-      <p class="hero-subtitle">Водо-водяной энергетический реактор мощностью 1200 МВт(э) — флагман российской ядерной энергетики</p>
-      <div class="hero-stats">
-        <div class="stat">
-          <span class="stat-num">1200</span>
-          <span class="stat-label">МВт эл. мощности</span>
-        </div>
-        <div class="stat">
-          <span class="stat-num">60</span>
-          <span class="stat-label">лет проектный срок</span>
-        </div>
-        <div class="stat">
-          <span class="stat-num">92%</span>
-          <span class="stat-label">КИУМ</span>
-        </div>
-        <div class="stat">
-          <span class="stat-num">10<sup>-7</sup></span>
-          <span class="stat-label">вер. тяж. аварии/год</span>
-        </div>
-      </div>
-      <a href="#overview" class="btn-primary">Узнать больше</a>
-    </div>
-
-    <div class="hero-reactor">
-      <div class="reactor-anim">
-        <div class="reactor-vessel">
-          <div class="reactor-core">
-            <div class="core-glow"></div>
-            <div class="fuel-rods">
-              <div class="rod"></div><div class="rod"></div><div class="rod"></div>
-              <div class="rod"></div><div class="rod"></div><div class="rod"></div>
-              <div class="rod"></div><div class="rod"></div><div class="rod"></div>
-            </div>
-          </div>
-          <div class="coolant-flow left"></div>
-          <div class="coolant-flow right"></div>
-        </div>
-        <div class="reactor-label">Активная зона</div>
-      </div>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">Fit<span>Plan</span></div>
+      <p class="header-tagline">Персональный план тренировок на 3 месяца</p>
     </div>
   </header>
 
-  <!-- OVERVIEW -->
-  <section id="overview" class="section">
-    <div class="container">
-      <h2 class="section-title">О реакторе</h2>
-      <div class="overview-grid">
-        <div class="overview-text">
-          <p>
-            ВВЭР-1200 (водо-водяной энергетический реактор электрической мощностью 1200 МВт) —
-            российский ядерный реактор с водой под давлением, разработанный АО «ОКБ ГИДРОПРЕСС»
-            при участии АО «НИКИЭТ» и других организаций Госкорпорации «Росатом».
-          </p>
-          <p>
-            Реактор относится к поколению III+ и является эволюционным развитием серии ВВЭР,
-            сочетая в себе как пассивные, так и активные системы безопасности.
-            Проект соответствует самым современным международным требованиям ядерной безопасности,
-            включая рекомендации МАГАТЭ и «постфукусимские» уроки.
-          </p>
-          <p>
-            Первый энергоблок с реактором ВВЭР-1200 был введён в промышленную эксплуатацию
-            на Нововоронежской АЭС-2 в феврале 2017 года.
-          </p>
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- STEP 1: Personal data -->
+    <section class="card" id="step-personal">
+      <div class="step-badge">Шаг 1</div>
+      <h2>Личные данные</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="age">Возраст <span class="unit">лет</span></label>
+          <input type="number" id="age" min="14" max="80" placeholder="25" />
         </div>
-        <div class="overview-cards">
-          <div class="info-card">
-            <div class="card-icon">&#x269B;</div>
-            <h3>Тип реактора</h3>
-            <p>Водо-водяной корпусной реактор с водой под давлением (PWR)</p>
-          </div>
-          <div class="info-card">
-            <div class="card-icon">&#x26A1;</div>
-            <h3>Разработчик</h3>
-            <p>АО «ОКБ ГИДРОПРЕСС», г. Подольск. Проект АЭС-2006</p>
-          </div>
-          <div class="info-card">
-            <div class="card-icon">&#x1F30D;</div>
-            <h3>Применение</h3>
-            <p>Базовая генерация в составе АЭС для производства электроэнергии и тепла</p>
-          </div>
-          <div class="info-card">
-            <div class="card-icon">&#x1F4C5;</div>
-            <h3>Первый пуск</h3>
-            <p>Нововоронежская АЭС-2, энергоблок №6 — 2017 год</p>
-          </div>
+        <div class="field">
+          <label for="gender">Пол</label>
+          <select id="gender">
+            <option value="male">Мужской</option>
+            <option value="female">Женский</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="weight">Вес <span class="unit">кг</span></label>
+          <input type="number" id="weight" min="30" max="250" placeholder="80" />
+        </div>
+        <div class="field">
+          <label for="height">Рост <span class="unit">см</span></label>
+          <input type="number" id="height" min="140" max="220" placeholder="175" />
+        </div>
+        <div class="field">
+          <label for="goal">Цель</label>
+          <select id="goal">
+            <option value="strength">Сила и масса</option>
+            <option value="weight_loss">Похудение</option>
+            <option value="endurance">Выносливость</option>
+            <option value="general">Общая физподготовка</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="level">Уровень подготовки</label>
+          <select id="level">
+            <option value="beginner">Начинающий (< 1 года)</option>
+            <option value="intermediate">Средний (1–3 года)</option>
+            <option value="advanced">Продвинутый (3+ лет)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="days">Дней в неделю</label>
+          <select id="days">
+            <option value="3">3 дня</option>
+            <option value="4">4 дня</option>
+            <option value="5">5 дней</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="equipment">Оборудование</label>
+          <select id="equipment">
+            <option value="gym">Тренажёрный зал (всё)</option>
+            <option value="barbell">Штанга + гантели</option>
+            <option value="dumbbells">Только гантели</option>
+            <option value="bodyweight">Без оборудования</option>
+          </select>
         </div>
       </div>
+    </section>
+
+    <!-- STEP 2: Strength indicators -->
+    <section class="card" id="step-strength">
+      <div class="step-badge">Шаг 2</div>
+      <h2>Силовые показатели <span class="optional">(оставьте 0 если не знаете)</span></h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="bench">Жим лёжа <span class="unit">кг (1ПМ)</span></label>
+          <input type="number" id="bench" min="0" max="400" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="squat">Приседания <span class="unit">кг (1ПМ)</span></label>
+          <input type="number" id="squat" min="0" max="500" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="deadlift">Становая тяга <span class="unit">кг (1ПМ)</span></label>
+          <input type="number" id="deadlift" min="0" max="500" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="ohp">Жим стоя <span class="unit">кг (1ПМ)</span></label>
+          <input type="number" id="ohp" min="0" max="300" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="pullups">Подтягивания <span class="unit">раз</span></label>
+          <input type="number" id="pullups" min="0" max="100" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="pushups">Отжимания <span class="unit">раз</span></label>
+          <input type="number" id="pushups" min="0" max="200" placeholder="0" />
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: Exercises -->
+    <section class="card" id="step-exercises">
+      <div class="step-badge">Шаг 3</div>
+      <h2>Упражнения, которые вы делаете</h2>
+      <p class="section-hint">Отметьте упражнения, которые уже выполняете или хотите включить в план</p>
+
+      <div class="exercise-groups">
+
+        <div class="ex-group">
+          <h3>Грудь</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Жим лёжа со штангой"> Жим лёжа со штангой</label>
+            <label class="ex-check"><input type="checkbox" value="Жим гантелей лёжа"> Жим гантелей лёжа</label>
+            <label class="ex-check"><input type="checkbox" value="Жим в наклоне"> Жим в наклоне</label>
+            <label class="ex-check"><input type="checkbox" value="Разводка гантелей"> Разводка гантелей</label>
+            <label class="ex-check"><input type="checkbox" value="Отжимания от пола"> Отжимания от пола</label>
+            <label class="ex-check"><input type="checkbox" value="Кроссовер в блоке"> Кроссовер в блоке</label>
+          </div>
+        </div>
+
+        <div class="ex-group">
+          <h3>Спина</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Становая тяга"> Становая тяга</label>
+            <label class="ex-check"><input type="checkbox" value="Подтягивания"> Подтягивания</label>
+            <label class="ex-check"><input type="checkbox" value="Тяга штанги в наклоне"> Тяга штанги в наклоне</label>
+            <label class="ex-check"><input type="checkbox" value="Тяга гантели одной рукой"> Тяга гантели одной рукой</label>
+            <label class="ex-check"><input type="checkbox" value="Тяга верхнего блока"> Тяга верхнего блока</label>
+            <label class="ex-check"><input type="checkbox" value="Тяга нижнего блока"> Тяга нижнего блока</label>
+            <label class="ex-check"><input type="checkbox" value="Гиперэкстензия"> Гиперэкстензия</label>
+          </div>
+        </div>
+
+        <div class="ex-group">
+          <h3>Ноги</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Приседания со штангой"> Приседания со штангой</label>
+            <label class="ex-check"><input type="checkbox" value="Жим ногами"> Жим ногами</label>
+            <label class="ex-check"><input type="checkbox" value="Выпады"> Выпады</label>
+            <label class="ex-check"><input type="checkbox" value="Румынская тяга"> Румынская тяга</label>
+            <label class="ex-check"><input type="checkbox" value="Сгибание ног в тренажёре"> Сгибание ног</label>
+            <label class="ex-check"><input type="checkbox" value="Разгибание ног в тренажёре"> Разгибание ног</label>
+            <label class="ex-check"><input type="checkbox" value="Подъём на носки"> Подъём на носки</label>
+          </div>
+        </div>
+
+        <div class="ex-group">
+          <h3>Плечи</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Жим штанги стоя"> Жим штанги стоя</label>
+            <label class="ex-check"><input type="checkbox" value="Жим гантелей сидя"> Жим гантелей сидя</label>
+            <label class="ex-check"><input type="checkbox" value="Махи гантелями в стороны"> Махи в стороны</label>
+            <label class="ex-check"><input type="checkbox" value="Махи гантелями вперёд"> Махи вперёд</label>
+            <label class="ex-check"><input type="checkbox" value="Тяга штанги к подбородку"> Тяга к подбородку</label>
+            <label class="ex-check"><input type="checkbox" value="Разведение гантелей в наклоне"> Разведение в наклоне</label>
+          </div>
+        </div>
+
+        <div class="ex-group">
+          <h3>Руки</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Сгибание со штангой на бицепс"> Сгибание со штангой</label>
+            <label class="ex-check"><input type="checkbox" value="Сгибание с гантелями на бицепс"> Сгибание с гантелями</label>
+            <label class="ex-check"><input type="checkbox" value="Молотки"> Молотки</label>
+            <label class="ex-check"><input type="checkbox" value="Разгибание на трицепс в блоке"> Разгибание в блоке</label>
+            <label class="ex-check"><input type="checkbox" value="Французский жим"> Французский жим</label>
+            <label class="ex-check"><input type="checkbox" value="Отжимания на брусьях"> Отжимания на брусьях</label>
+          </div>
+        </div>
+
+        <div class="ex-group">
+          <h3>Кардио и пресс</h3>
+          <div class="ex-list">
+            <label class="ex-check"><input type="checkbox" value="Скручивания"> Скручивания</label>
+            <label class="ex-check"><input type="checkbox" value="Планка"> Планка</label>
+            <label class="ex-check"><input type="checkbox" value="Подъём ног в висе"> Подъём ног в висе</label>
+            <label class="ex-check"><input type="checkbox" value="Бег"> Бег</label>
+            <label class="ex-check"><input type="checkbox" value="Велотренажёр"> Велотренажёр</label>
+            <label class="ex-check"><input type="checkbox" value="Прыжки со скакалкой"> Прыжки со скакалкой</label>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Generate button -->
+    <div class="generate-wrap">
+      <button class="btn-generate" id="generateBtn">
+        <span class="btn-icon">⚡</span>
+        Составить план на 3 месяца
+      </button>
     </div>
-  </section>
 
-  <!-- SPECS -->
-  <section id="specs" class="section section-dark">
-    <div class="container">
-      <h2 class="section-title light">Технические характеристики</h2>
-      <div class="specs-grid">
-        <div class="spec-category">
-          <h3>Тепловые параметры</h3>
-          <table class="spec-table">
-            <tr><td>Тепловая мощность</td><td>3212 МВт(т)</td></tr>
-            <tr><td>Электрическая мощность</td><td>1200 МВт(э)</td></tr>
-            <tr><td>КПД нетто</td><td>~37,4%</td></tr>
-            <tr><td>Температура теплоносителя (вход)</td><td>298 °C</td></tr>
-            <tr><td>Температура теплоносителя (выход)</td><td>328 °C</td></tr>
-            <tr><td>Давление теплоносителя 1 контура</td><td>16,2 МПа</td></tr>
-          </table>
-        </div>
-        <div class="spec-category">
-          <h3>Конструкция активной зоны</h3>
-          <table class="spec-table">
-            <tr><td>Тип топлива</td><td>UO₂ (диоксид урана)</td></tr>
-            <tr><td>Обогащение топлива</td><td>до 4,95%</td></tr>
-            <tr><td>Число ТВС</td><td>163</td></tr>
-            <tr><td>Высота активной зоны</td><td>3,73 м</td></tr>
-            <tr><td>Диаметр активной зоны</td><td>3,16 м</td></tr>
-            <tr><td>Топливный цикл</td><td>18–24 месяца</td></tr>
-          </table>
-        </div>
-        <div class="spec-category">
-          <h3>Корпус реактора</h3>
-          <table class="spec-table">
-            <tr><td>Высота корпуса</td><td>~13,5 м</td></tr>
-            <tr><td>Внутренний диаметр</td><td>4,15 м</td></tr>
-            <tr><td>Толщина стенки</td><td>200 мм</td></tr>
-            <tr><td>Материал</td><td>Сталь 15Х2НМФА</td></tr>
-            <tr><td>Масса</td><td>~330 т</td></tr>
-            <tr><td>Срок службы</td><td>60 лет (с учётом замены)</td></tr>
-          </table>
-        </div>
-        <div class="spec-category">
-          <h3>Контуры охлаждения</h3>
-          <table class="spec-table">
-            <tr><td>Число петель первого контура</td><td>4</td></tr>
-            <tr><td>Паровые генераторы</td><td>4 × ПГВ-1000МКП</td></tr>
-            <tr><td>ГЦН</td><td>4 × ГЦН-1391</td></tr>
-            <tr><td>Давление пара 2 контура</td><td>7,0 МПа</td></tr>
-            <tr><td>Температура пара</td><td>290 °C</td></tr>
-            <tr><td>Расход теплоносителя</td><td>86 000 т/ч</td></tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- SAFETY -->
-  <section id="safety" class="section">
-    <div class="container">
-      <h2 class="section-title">Системы безопасности</h2>
-      <p class="section-desc">
-        ВВЭР-1200 реализует концепцию «глубокоэшелонированной защиты» с четырьмя независимыми
-        барьерами безопасности и сочетает активные и пассивные системы.
-      </p>
-
-      <div class="barriers">
-        <div class="barrier">
-          <div class="barrier-num">1</div>
-          <h3>Топливная матрица</h3>
-          <p>Топливные таблетки UO₂ удерживают более 98% продуктов деления</p>
-        </div>
-        <div class="barrier-arrow">&#8594;</div>
-        <div class="barrier">
-          <div class="barrier-num">2</div>
-          <h3>Оболочка ТВЭЛа</h3>
-          <p>Циркониевая оболочка толщиной ~0,57 мм из сплава Э-110</p>
-        </div>
-        <div class="barrier-arrow">&#8594;</div>
-        <div class="barrier">
-          <div class="barrier-num">3</div>
-          <h3>Корпус реактора</h3>
-          <p>Стальной корпус с давлением 16,2 МПа и прочные трубопроводы 1-го контура</p>
-        </div>
-        <div class="barrier-arrow">&#8594;</div>
-        <div class="barrier">
-          <div class="barrier-num">4</div>
-          <h3>Защитная оболочка</h3>
-          <p>Двойная защитная оболочка (контайнмент): внутренняя — предварительно напряжённый ЖБ, наружная — ЖБ от внешних воздействий</p>
-        </div>
+    <!-- RESULT -->
+    <section class="result-section hidden" id="resultSection">
+      <div class="result-header">
+        <h2 id="resultTitle">Ваш персональный план</h2>
+        <div class="result-meta" id="resultMeta"></div>
       </div>
 
-      <div class="safety-systems">
-        <div class="safety-card passive">
-          <div class="safety-badge">Пассивные</div>
-          <h3>Пассивные системы безопасности</h3>
-          <ul>
-            <li>Система пассивного отвода тепла (СПОТ) — работает без электричества 72+ часов</li>
-            <li>Гидроаккумуляторы 1-й и 2-й ступени САОЗ</li>
-            <li>Пассивная система подачи воды высокого давления</li>
-            <li>Ловушка расплава активной зоны («ловушка кориума»)</li>
-            <li>Система пассивного управления водородом</li>
-          </ul>
-        </div>
-        <div class="safety-card active">
-          <div class="safety-badge">Активные</div>
-          <h3>Активные системы безопасности</h3>
-          <ul>
-            <li>Четыре независимых канала аварийного охлаждения активной зоны (САОЗ)</li>
-            <li>Система аварийного питания паровых генераторов</li>
-            <li>Быстродействующая система аварийной защиты (АЗ)</li>
-            <li>Четыре независимых дизельных генератора</li>
-            <li>Система управления авариями с полным обесточиванием</li>
-          </ul>
-        </div>
+      <!-- BMI / stats -->
+      <div class="stats-row" id="statsRow"></div>
+
+      <!-- Phase tabs -->
+      <div class="phase-tabs">
+        <button class="phase-tab active" data-phase="1">Месяц 1<br/><small>Адаптация</small></button>
+        <button class="phase-tab" data-phase="2">Месяц 2<br/><small>Прогрессия</small></button>
+        <button class="phase-tab" data-phase="3">Месяц 3<br/><small>Пик / Финиш</small></button>
       </div>
 
-      <div class="corium-trap">
-        <div class="trap-visual">
-          <div class="trap-shape">
-            <div class="trap-inner">
-              <span>Ловушка<br/>кориума</span>
-            </div>
-          </div>
-        </div>
-        <div class="trap-text">
-          <h3>Ловушка расплава активной зоны</h3>
-          <p>
-            Уникальная для проекта АЭС-2006 система — ловушка расплава (кориума) —
-            расположена под корпусом реактора и предназначена для локализации расплавленного
-            топлива при гипотетической тяжёлой аварии с расплавлением активной зоны.
-          </p>
-          <p>
-            Конструкция обеспечивает охлаждение расплава и предотвращает
-            его выход за пределы шахты реактора. Масса ловушки — около 900 т.
-            Это исключает выброс радиоактивных веществ даже при наихудшем сценарии аварии.
-          </p>
-        </div>
+      <div class="phase-content" id="phaseContent"></div>
+
+      <!-- Weekly schedule -->
+      <div class="schedule-section">
+        <h3>Недельное расписание</h3>
+        <div class="schedule-grid" id="scheduleGrid"></div>
       </div>
-    </div>
-  </section>
 
-  <!-- DESIGN -->
-  <section id="design" class="section section-dark">
-    <div class="container">
-      <h2 class="section-title light">Устройство и принцип работы</h2>
-      <div class="design-layout">
-        <div class="design-diagram">
-          <div class="circuit-diagram">
-            <!-- First loop -->
-            <div class="loop loop1">
-              <div class="component reactor-box">
-                <span>Реактор</span>
-                <div class="heat-icon">&#9762;</div>
-              </div>
-              <div class="pipe-h top"></div>
-              <div class="component sg-box">
-                <span>Паро-генератор</span>
-              </div>
-              <div class="pipe-h bottom"></div>
-              <div class="component pump-box">
-                <span>ГЦН</span>
-              </div>
-              <div class="loop-label">1-й контур (вода 16 МПа)</div>
-            </div>
-            <!-- Second loop -->
-            <div class="loop loop2">
-              <div class="component turbine-box">
-                <span>Турбина</span>
-                <div class="spin-icon">&#9881;</div>
-              </div>
-              <div class="component gen-box">
-                <span>Генератор</span>
-                <div class="bolt-icon">&#9889;</div>
-              </div>
-              <div class="component cond-box">
-                <span>Конденсатор</span>
-              </div>
-              <div class="loop-label">2-й контур (пар 7 МПа)</div>
-            </div>
-            <div class="arrow-flow">&#8595; 1200 МВт в сеть</div>
-          </div>
-        </div>
-        <div class="design-steps">
-          <div class="step">
-            <div class="step-num">01</div>
-            <div class="step-text">
-              <h4>Деление ядер урана</h4>
-              <p>В активной зоне происходит цепная ядерная реакция деления U-235. Выделяется тепловая энергия — 3212 МВт.</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num">02</div>
-            <div class="step-text">
-              <h4>Теплоноситель 1-го контура</h4>
-              <p>Вода под давлением 16,2 МПа (не кипит!) нагревается до 328 °C и циркулирует через 4 парогенератора с помощью ГЦН.</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num">03</div>
-            <div class="step-text">
-              <h4>Паровые генераторы</h4>
-              <p>В парогенераторах тепло передаётся во 2-й контур. Формируется пар давлением 7,0 МПа при температуре ~290 °C.</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num">04</div>
-            <div class="step-text">
-              <h4>Турбогенератор</h4>
-              <p>Пар вращает паровую турбину, соединённую с генератором. Вырабатывается ~1200 МВт электроэнергии.</p>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num">05</div>
-            <div class="step-text">
-              <h4>Конденсатор и возврат</h4>
-              <p>Отработанный пар конденсируется в конденсаторе, вода подаётся обратно в парогенераторы.</p>
-            </div>
-          </div>
-        </div>
+      <!-- Recommendations -->
+      <div class="reco-section">
+        <h3>Рекомендации</h3>
+        <div class="reco-grid" id="recoGrid"></div>
       </div>
-    </div>
-  </section>
 
-  <!-- PROJECTS -->
-  <section id="projects" class="section">
-    <div class="container">
-      <h2 class="section-title">АЭС с реакторами ВВЭР-1200</h2>
-      <div class="projects-grid">
-
-        <div class="project-card operating">
-          <div class="project-status">В работе</div>
-          <div class="project-country">&#127479;&#127482; Россия</div>
-          <h3>Нововоронежская АЭС-2</h3>
-          <p>Энергоблоки №6 и №7. Первый в мире энергоблок с ВВЭР-1200 введён в эксплуатацию в 2017 году.</p>
-          <div class="project-power">2 × 1200 МВт(э)</div>
-        </div>
-
-        <div class="project-card operating">
-          <div class="project-status">В работе</div>
-          <div class="project-country">&#127479;&#127482; Россия</div>
-          <h3>Ленинградская АЭС-2</h3>
-          <p>Энергоблоки №1 и №2 (ЛАЭС-2). Введены в эксплуатацию в 2021 и 2023 годах.</p>
-          <div class="project-power">2 × 1200 МВт(э)</div>
-        </div>
-
-        <div class="project-card operating">
-          <div class="project-status">В работе</div>
-          <div class="project-country">&#127463;&#127468; Беларусь</div>
-          <h3>Белорусская АЭС</h3>
-          <p>г. Островец. Первый энергоблок введён в 2020 году, второй — в 2023 году. Первая АЭС в Беларуси.</p>
-          <div class="project-power">2 × 1200 МВт(э)</div>
-        </div>
-
-        <div class="project-card construction">
-          <div class="project-status">Строительство</div>
-          <div class="project-country">&#127481;&#127479; Турция</div>
-          <h3>АЭС «Аккую»</h3>
-          <p>Мерсин. Строятся 4 энергоблока. Первый планируется к пуску в 2025–2026 гг. Проект по модели BOO.</p>
-          <div class="project-power">4 × 1200 МВт(э)</div>
-        </div>
-
-        <div class="project-card construction">
-          <div class="project-status">Строительство</div>
-          <div class="project-country">&#127463;&#127465; Бангладеш</div>
-          <h3>АЭС «Руппур»</h3>
-          <p>2 энергоблока ВВЭР-1200. Первый энергоблок — готовность ~90%. Запуск ожидается в 2024–2025 гг.</p>
-          <div class="project-power">2 × 1200 МВт(э)</div>
-        </div>
-
-        <div class="project-card construction">
-          <div class="project-status">Планирование</div>
-          <div class="project-country">&#127466;&#127468; Египет</div>
-          <h3>АЭС «Эль-Дабаа»</h3>
-          <p>4 энергоблока ВВЭР-1200. Строительство началось в 2022 году. Первый блок запланирован на 2028 год.</p>
-          <div class="project-power">4 × 1200 МВт(э)</div>
-        </div>
-
+      <!-- Print button -->
+      <div class="print-wrap">
+        <button class="btn-print" onclick="window.print()">🖨 Распечатать план</button>
+        <button class="btn-reset" id="resetBtn">Составить новый план</button>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- COMPARISON -->
-  <section id="comparison" class="section section-dark">
-    <div class="container">
-      <h2 class="section-title light">Сравнение поколений ВВЭР</h2>
-      <div class="table-wrapper">
-        <table class="compare-table">
-          <thead>
-            <tr>
-              <th>Параметр</th>
-              <th>ВВЭР-440</th>
-              <th>ВВЭР-1000</th>
-              <th class="highlight-col">ВВЭР-1200</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Поколение</td>
-              <td>II</td>
-              <td>II+/III</td>
-              <td class="highlight-col">III+</td>
-            </tr>
-            <tr>
-              <td>Тепловая мощность</td>
-              <td>1375 МВт(т)</td>
-              <td>3000 МВт(т)</td>
-              <td class="highlight-col">3212 МВт(т)</td>
-            </tr>
-            <tr>
-              <td>Электрическая мощность</td>
-              <td>440 МВт(э)</td>
-              <td>1000 МВт(э)</td>
-              <td class="highlight-col">1200 МВт(э)</td>
-            </tr>
-            <tr>
-              <td>КПД</td>
-              <td>~32%</td>
-              <td>~33%</td>
-              <td class="highlight-col">~37,4%</td>
-            </tr>
-            <tr>
-              <td>Срок службы</td>
-              <td>30 лет</td>
-              <td>40 лет</td>
-              <td class="highlight-col">60 лет</td>
-            </tr>
-            <tr>
-              <td>КИУМ</td>
-              <td>~70%</td>
-              <td>~80%</td>
-              <td class="highlight-col">~92%</td>
-            </tr>
-            <tr>
-              <td>Пассивные системы безопасности</td>
-              <td>Нет</td>
-              <td>Частично</td>
-              <td class="highlight-col">Да (СПОТ, САОЗ)</td>
-            </tr>
-            <tr>
-              <td>Ловушка кориума</td>
-              <td>Нет</td>
-              <td>Нет</td>
-              <td class="highlight-col">Есть</td>
-            </tr>
-            <tr>
-              <td>Двойной контайнмент</td>
-              <td>Нет</td>
-              <td>Частично</td>
-              <td class="highlight-col">Да</td>
-            </tr>
-            <tr>
-              <td>Вероятность тяжёлой аварии (г/р)</td>
-              <td>~10⁻⁵</td>
-              <td>~10⁻⁵</td>
-              <td class="highlight-col">&lt;10⁻⁷</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+  </main>
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-logo">ВВЭР<span>-1200</span></div>
-        <div class="footer-info">
-          <p>Информационный сайт о реакторе ВВЭР-1200</p>
-          <p>Данные приведены на основе открытых технических источников и публикаций Росатома</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://rosatom.ru" target="_blank" rel="noopener">Росатом</a>
-          <a href="https://www.iaea.org" target="_blank" rel="noopener">МАГАТЭ</a>
-          <a href="http://www.gidropress.podolsk.ru" target="_blank" rel="noopener">ОКБ ГИДРОПРЕСС</a>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <p>&copy; 2024 ВВЭР-1200. Образовательный ресурс.</p>
-      </div>
-    </div>
+  <footer class="site-footer">
+    <p>FitPlan &copy; 2024 — Персональные планы тренировок</p>
+    <p class="footer-note">Перед началом тренировок проконсультируйтесь с врачом</p>
   </footer>
 
   <script src="script.js"></script>
