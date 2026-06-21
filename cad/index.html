@@ -183,9 +183,12 @@
     <button id="btnSample">пример: 10PAC10EE001</button>
     <button id="btnClear">очистить</button>
     <div class="sep"></div>
+    <button id="btnPdfImport" style="background:#1a2d4a;border-color:#3a6ea8;color:#7eb8f7;font-weight:700">⬆ PDF → схема</button>
+    <div class="sep"></div>
     <button id="btnExport">экспорт JSON</button>
     <button id="btnImport">импорт JSON</button>
     <input type="file" id="fileInput" accept=".json" style="display:none">
+    <input type="file" id="pdfFileInput" accept=".pdf" style="display:none">
     <div class="spacer"></div>
     <span class="status" id="status">режим: редактирование</span>
     <div class="sep"></div>
@@ -203,6 +206,50 @@
     <div id="canvas"></div>
     <svg class="wires" id="wires"></svg>
     <div class="hint" id="hint">Перетащите блок из палитры · соедините порты кликом по выходу, затем по входу</div>
+  </div>
+
+  <!-- PDF Import Modal -->
+  <div id="pdfModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;">
+    <div style="background:#141d30;border:1px solid #26334d;border-radius:10px;padding:28px 32px;width:560px;max-width:95vw;font-family:'JetBrains Mono',monospace;color:#d3dcec;">
+      <div style="font-size:13px;font-weight:700;color:#58a6ff;margin-bottom:18px;letter-spacing:.1em;text-transform:uppercase">
+        ⬆ Распознавание плана из PDF
+      </div>
+
+      <!-- Step 1: API key -->
+      <div id="pdfStep1">
+        <div style="font-size:10px;color:#6d7c93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Шаг 1 — API-ключ Anthropic (Claude Vision)</div>
+        <div style="font-size:9px;color:#6d7c93;margin-bottom:10px">Ключ хранится только в localStorage вашего браузера и никуда не передаётся, кроме api.anthropic.com</div>
+        <input id="pdfApiKey" type="password" placeholder="sk-ant-api03-..." style="width:100%;background:#0f1726;border:1px solid #26334d;color:#d3dcec;padding:8px 12px;font-family:inherit;font-size:12px;border-radius:4px;margin-bottom:14px">
+        <div style="font-size:10px;color:#6d7c93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Шаг 2 — выберите PDF-файл</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+          <button id="pdfPickFile" style="background:#0f1726;border:1px solid #26334d;color:#58a6ff;padding:8px 16px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:4px;text-transform:uppercase">Выбрать PDF</button>
+          <span id="pdfFileName" style="font-size:11px;color:#6d7c93">файл не выбран</span>
+        </div>
+        <div style="font-size:10px;color:#6d7c93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Шаг 3 — страница PDF</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
+          <label style="font-size:10px;color:#6d7c93">Страница:</label>
+          <input id="pdfPageNum" type="number" min="1" value="1" style="width:70px;background:#0f1726;border:1px solid #26334d;color:#d3dcec;padding:6px 8px;font-family:inherit;font-size:12px;border-radius:4px">
+          <span id="pdfPageTotal" style="font-size:10px;color:#6d7c93"></span>
+          <button id="pdfPreviewBtn" style="background:#0f1726;border:1px solid #26334d;color:#d3dcec;padding:6px 12px;font-family:inherit;font-size:10px;cursor:pointer;border-radius:4px" disabled>предпросмотр</button>
+        </div>
+        <!-- Preview canvas -->
+        <div id="pdfPreviewWrap" style="display:none;margin-bottom:16px;border:1px solid #26334d;border-radius:4px;overflow:auto;max-height:300px;text-align:center;background:#0d1320">
+          <canvas id="pdfPreviewCanvas" style="max-width:100%;height:auto"></canvas>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button id="pdfModalClose" style="background:#0f1726;border:1px solid #26334d;color:#6d7c93;padding:8px 20px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:4px;text-transform:uppercase">отмена</button>
+          <button id="pdfRecognizeBtn" style="background:#58a6ff;border:1px solid #58a6ff;color:#0a1628;padding:8px 20px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:4px;font-weight:700;text-transform:uppercase" disabled>▶ распознать и загрузить</button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="pdfProgress" style="display:none">
+        <div id="pdfProgressText" style="font-size:11px;color:#58a6ff;margin-bottom:14px;min-height:40px;white-space:pre-wrap"></div>
+        <div style="background:#0f1726;border-radius:4px;height:6px;overflow:hidden">
+          <div id="pdfProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#58a6ff,#3ad29f);transition:width .4s"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="console" id="console">
@@ -1217,6 +1264,309 @@ buildPalette();
   if (!restored) loadSample();
 })();
 window.addEventListener('resize', drawWires);
+
+// ════════════════════════════════════════════════════════════════════════════
+// PDF → СХЕМА: распознавание функционального плана через Claude Vision API
+// ════════════════════════════════════════════════════════════════════════════
+
+// --- PDF.js загружается динамически ---
+let pdfLib = null;
+async function getPdfLib() {
+  if (pdfLib) return pdfLib;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfLib = window.pdfjsLib;
+  return pdfLib;
+}
+
+// --- Состояние PDF-импорта ---
+let pdfDoc = null;
+let pdfCurrentPage = 1;
+
+function openPdfModal() {
+  const modal = document.getElementById('pdfModal');
+  modal.style.display = 'flex';
+  const saved = localStorage.getItem('fbd:apikey') || '';
+  document.getElementById('pdfApiKey').value = saved;
+  updateRecognizeBtn();
+}
+function closePdfModal() {
+  document.getElementById('pdfModal').style.display = 'none';
+  document.getElementById('pdfProgress').style.display = 'none';
+  document.getElementById('pdfStep1').style.display = '';
+}
+
+function updateRecognizeBtn() {
+  const hasKey = document.getElementById('pdfApiKey').value.trim().length > 10;
+  const hasFile = !!pdfDoc;
+  document.getElementById('pdfRecognizeBtn').disabled = !(hasKey && hasFile);
+  document.getElementById('pdfPreviewBtn').disabled = !hasFile;
+}
+
+document.getElementById('btnPdfImport').addEventListener('click', openPdfModal);
+document.getElementById('pdfModalClose').addEventListener('click', closePdfModal);
+document.getElementById('pdfApiKey').addEventListener('input', () => {
+  updateRecognizeBtn();
+});
+document.getElementById('pdfPickFile').addEventListener('click', () => {
+  document.getElementById('pdfFileInput').click();
+});
+
+document.getElementById('pdfFileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('pdfFileName').textContent = file.name;
+  document.getElementById('pdfFileName').style.color = '#d3dcec';
+  try {
+    const lib = await getPdfLib();
+    const arrayBuffer = await file.arrayBuffer();
+    pdfDoc = await lib.getDocument({ data: arrayBuffer }).promise;
+    document.getElementById('pdfPageTotal').textContent = `из ${pdfDoc.numPages}`;
+    document.getElementById('pdfPageNum').max = pdfDoc.numPages;
+    updateRecognizeBtn();
+    log(`PDF загружен: ${file.name}, страниц: ${pdfDoc.numPages}`, 'info');
+    // auto preview first page
+    await previewPdfPage(1);
+  } catch(err) {
+    log('Ошибка загрузки PDF: ' + err.message, 'hot');
+    document.getElementById('pdfFileName').style.color = '#ff5d6c';
+    document.getElementById('pdfFileName').textContent = 'ошибка: ' + err.message;
+  }
+  e.target.value = '';
+});
+
+document.getElementById('pdfPreviewBtn').addEventListener('click', async () => {
+  const page = parseInt(document.getElementById('pdfPageNum').value) || 1;
+  await previewPdfPage(page);
+});
+
+async function previewPdfPage(pageNum) {
+  if (!pdfDoc) return;
+  const page = await pdfDoc.getPage(pageNum);
+  const viewport = page.getViewport({ scale: 1.5 });
+  const canvas = document.getElementById('pdfPreviewCanvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  document.getElementById('pdfPreviewWrap').style.display = '';
+}
+
+// --- Рендеринг PDF страницы в base64 image ---
+async function renderPageToBase64(pageNum, scale = 2.5) {
+  const page = await pdfDoc.getPage(pageNum);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  // белый фон (PDF может быть прозрачным)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  // Сжимаем до разумного размера (Claude принимает до ~5 МБ base64)
+  let quality = 0.92;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  // если слишком большой — уменьшаем
+  while (dataUrl.length > 4_500_000 && quality > 0.4) {
+    quality -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+  return dataUrl.split(',')[1]; // только base64 без префикса
+}
+
+// --- Промпт для Claude ---
+const RECOGNITION_PROMPT = `Ты эксперт по функциональным схемам логики (ФСЛ) систем АСУ ТП (SCADA/DCS).
+На изображении — функциональный план (FBD/ФСЛ) промышленной системы управления.
+
+Твоя задача: распознать все блоки и связи и вернуть ТОЛЬКО валидный JSON (без markdown-блоков, без пояснений).
+
+Допустимые типы блоков (type):
+- "SEL3.B" — блок выбора 2-из-3, порты вх: BI1,BI2,BI3, вых: IN1V3,IN2V3,IN3V3,INM, params: {T: число}
+- "SEL2.B" — выбор из 2, вх: BI1,BI2, вых: IN1V2,IN2V2,INM, params: {T: число}
+- "AND" — логическое И, dynIn: true, вых: out, params: {}
+- "OR" — логическое ИЛИ, dynIn: true, вых: out, params: {}
+- "NOT" — инверсия, вх: a, вых: out
+- "TON" — задержка вкл, вх: in, вых: out, params: {T: число}
+- "TOF" — задержка откл, вх: in, вых: out, params: {T: число}
+- "RS" — RS-триггер, вх: S,R, вых: Q, params: {Type:"R"}
+- "CROSS.LINK.IN" — входной сигнал, вых: out, params: {kks:"тег KKS", ext:"XH03|XH05|XH53|XM26|XQ01", limit:">140", value:0}
+- "CROSS.LINK.OUT" — выходной сигнал, вх: in, params: {kks:"", ext:"XK13|XK18|XK19|XK90|XK95|XK00", desc:"описание"}
+- "CONST.B" — константа 0/1, вых: out, params: {value:0}
+
+Правила маппинга (важно):
+- Блоки XH03, XH05, XH53 на схеме → type="CROSS.LINK.IN", ext=имя типа, kks=тег датчика
+- Блоки XM26 (недостоверность) → type="CROSS.LINK.IN", ext="XM26"
+- Блоки XK13/XK18/XK19/XK90/XK95 → type="CROSS.LINK.OUT", ext=имя типа
+- Элемент & → type="AND"
+- Элемент ≥1 → type="OR"
+- SEL3.B с параметром T:1.0 и T:0.0 — это две отдельных копии
+
+Расположи блоки по реальным координатам на схеме (x,y в пикселях, начало — левый верхний угол холста 800×600).
+Входные сигналы — слева (x≈50-200), логические блоки — в центре (x≈250-500), выходы — справа (x≈550-700).
+Вертикально распределяй группы равномерно по y.
+
+Формат ответа (строго JSON, без комментариев):
+{
+  "nodes": [
+    {"id":"n1","type":"CROSS.LINK.IN","x":50,"y":60,"params":{"kks":"10PAC10CT001","ext":"XH03","limit":">140","value":0},"dynInCount":null,"invOut":{},"invIn":{}},
+    {"id":"n2","type":"SEL3.B","x":280,"y":80,"params":{"T":1.0},"dynInCount":null,"invOut":{},"invIn":{}},
+    {"id":"n3","type":"AND","x":440,"y":120,"params":{},"dynInCount":2,"invOut":{},"invIn":{}},
+    {"id":"n4","type":"CROSS.LINK.OUT","x":580,"y":130,"params":{"kks":"10CMT31","ext":"XK13","desc":"СРАБ 1 ИЗ 3"},"dynInCount":null,"invOut":{},"invIn":{}}
+  ],
+  "links": [
+    {"id":"l1","from":{"node":"n1","port":"out"},"to":{"node":"n2","port":"BI1"}},
+    {"id":"l2","from":{"node":"n2","port":"IN2V3"},"to":{"node":"n3","port":"BI1"}},
+    {"id":"l3","from":{"node":"n3","port":"out"},"to":{"node":"n4","port":"in"}}
+  ],
+  "nodeSeq": 10,
+  "linkSeq": 10,
+  "recognized_description": "краткое описание того что распознано на схеме"
+}
+
+Распознай ВСЁ что видишь на схеме — все блоки, все теги, все соединения.`;
+
+// --- Вызов Claude API ---
+async function callClaudeVision(apiKey, base64Image) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-8',
+      max_tokens: 8192,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: base64Image }
+          },
+          { type: 'text', text: RECOGNITION_PROMPT }
+        ]
+      }]
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Claude API: ${response.status} — ${err.error?.message || response.statusText}`);
+  }
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+// --- Парсинг ответа Claude ---
+function parseClaudeResponse(text) {
+  // Ищем JSON в ответе (может быть обёрнут в markdown)
+  let json = text.trim();
+  // убрать ```json ... ``` или ``` ... ```
+  json = json.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  // найти первый { до последнего }
+  const start = json.indexOf('{');
+  const end = json.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('JSON не найден в ответе Claude');
+  json = json.slice(start, end + 1);
+  return JSON.parse(json);
+}
+
+// --- Постобработка: расставить dynInCount по числу входных связей ---
+function postprocessScheme(scheme) {
+  // для AND/OR — установить dynInCount по числу линков входа
+  for (const node of scheme.nodes) {
+    if (node.type === 'AND' || node.type === 'OR') {
+      const inCount = scheme.links.filter(l => l.to.node === node.id).length;
+      node.dynInCount = Math.max(2, inCount);
+      // переименовать входные порты BI1..BIn
+      let bi = 1;
+      for (const l of scheme.links) {
+        if (l.to.node === node.id) {
+          l.to.port = 'BI' + (bi++);
+        }
+      }
+    }
+  }
+  // убедиться что nodeSeq и linkSeq достаточно большие
+  const maxN = scheme.nodes.reduce((m,n) => Math.max(m, parseInt(n.id.slice(1))||0), 0);
+  const maxL = scheme.links.reduce((m,l) => Math.max(m, parseInt(l.id.slice(1))||0), 0);
+  scheme.nodeSeq = maxN + 1;
+  scheme.linkSeq = maxL + 1;
+  return scheme;
+}
+
+// --- Главная функция распознавания ---
+async function runPdfRecognition() {
+  const apiKey = document.getElementById('pdfApiKey').value.trim();
+  if (!apiKey) { log('Введите API-ключ Anthropic', 'hot'); return; }
+  if (!pdfDoc) { log('Выберите PDF-файл', 'hot'); return; }
+  const pageNum = parseInt(document.getElementById('pdfPageNum').value) || 1;
+
+  localStorage.setItem('fbd:apikey', apiKey);
+
+  // Показать прогресс
+  document.getElementById('pdfStep1').style.display = 'none';
+  document.getElementById('pdfProgress').style.display = '';
+  const ptxt = document.getElementById('pdfProgressText');
+  const pbar = document.getElementById('pdfProgressBar');
+
+  const setProgress = (pct, msg) => {
+    pbar.style.width = pct + '%';
+    ptxt.textContent = msg;
+    log(msg, 'info');
+  };
+
+  try {
+    setProgress(10, 'Рендеринг страницы PDF...');
+    const base64 = await renderPageToBase64(pageNum, 2.5);
+    const sizeKb = Math.round(base64.length * 0.75 / 1024);
+    setProgress(25, `Изображение готово (${sizeKb} КБ). Отправка в Claude Vision...`);
+
+    const rawResponse = await callClaudeVision(apiKey, base64);
+    setProgress(75, 'Ответ получен. Разбор JSON...');
+
+    const scheme = parseClaudeResponse(rawResponse);
+    setProgress(88, `Распознано: ${scheme.nodes?.length||0} блоков, ${scheme.links?.length||0} связей. Загрузка...`);
+
+    const processed = postprocessScheme(scheme);
+    if (simRunning) stopSim();
+    clearScheme();
+    loadScheme(processed);
+
+    setProgress(100, `✓ Готово! ${processed.nodes.length} блоков, ${processed.links.length} связей.\n${scheme.recognized_description||''}`);
+    log(`PDF распознан: ${processed.nodes.length} блоков, ${processed.links.length} связей`, 'ok');
+    if (scheme.recognized_description) log(scheme.recognized_description, 'info');
+
+    setTimeout(() => {
+      closePdfModal();
+    }, 2500);
+
+  } catch (err) {
+    setProgress(0, '✗ Ошибка: ' + err.message);
+    ptxt.style.color = '#ff5d6c';
+    log('Ошибка распознавания: ' + err.message, 'hot');
+    setTimeout(() => {
+      document.getElementById('pdfStep1').style.display = '';
+      document.getElementById('pdfProgress').style.display = 'none';
+      ptxt.style.color = '#58a6ff';
+    }, 3000);
+  }
+}
+
+document.getElementById('pdfRecognizeBtn').addEventListener('click', runPdfRecognition);
+
+// --- Закрытие модала по клику на фон ---
+document.getElementById('pdfModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('pdfModal')) closePdfModal();
+});
 
 </script>
 </body>
