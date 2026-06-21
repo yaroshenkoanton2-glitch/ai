@@ -1,166 +1,1223 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FimaticCAD — Редактор ФСЛ</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FBD-редактор · среда разработки алгоритмов ПТК САУ-2</title>
+<style>
+  :root {
+    --bg: #0d1320;
+    --panel: #141d30;
+    --panel-2: #0f1726;
+    --line: #26334d;
+    --ink: #d3dcec;
+    --muted: #6d7c93;
+    --accent: #58a6ff;
+    --hot: #ff5d6c;
+    --ok: #3ad29f;
+    --warn: #ffc04d;
+    --grid: rgba(255,255,255,0.025);
+    --port-in: #58a6ff;
+    --port-out: #3ad29f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'JetBrains Mono','IBM Plex Mono',Consolas,monospace;
+    background: var(--bg); color: var(--ink);
+    display: grid;
+    grid-template-columns: 230px 1fr 300px;
+    grid-template-rows: 48px 1fr 150px;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "palette canvas inspector"
+      "palette console inspector";
+    height: 100vh; overflow: hidden;
+  }
+  .topbar {
+    grid-area: topbar; display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; background: linear-gradient(180deg,#101a2c,#0c1422);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .logo { font-size: 12px; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; }
+  .topbar .logo b { color: var(--accent); }
+  .topbar .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+  .topbar button {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 7px 12px; font-family: inherit; font-size: 11px; letter-spacing: .05em;
+    cursor: pointer; border-radius: 4px; transition: .15s; text-transform: uppercase;
+  }
+  .topbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .topbar button.run { background: var(--ok); color: #062018; border-color: var(--ok); font-weight: 700; }
+  .topbar button.run:hover { background: #4fe3b0; }
+  .topbar button.stop { background: var(--hot); color: #2a0006; border-color: var(--hot); font-weight: 700; }
+  .topbar .spacer { flex: 1; }
+  .topbar .status { font-size: 11px; color: var(--muted); }
+  .topbar .status.live { color: var(--ok); }
+
+  .palette {
+    grid-area: palette; background: var(--panel); border-right: 1px solid var(--line);
+    overflow-y: auto; padding: 10px;
+  }
+  .palette h3 {
+    font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted);
+    margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
+  }
+  .palette h3:first-child { margin-top: 0; }
+  .pal-item {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 7px 9px; margin-bottom: 5px; cursor: grab; font-size: 11px;
+    display: flex; align-items: center; gap: 8px; transition: .12s;
+  }
+  .pal-item:hover { border-color: var(--accent); background: #16243d; }
+  .pal-item:active { cursor: grabbing; }
+  .pal-item .tag { font-weight: 700; color: var(--accent); min-width: 58px; }
+  .pal-item .desc { color: var(--muted); font-size: 9px; line-height: 1.2; }
+
+  .canvas-wrap { grid-area: canvas; position: relative; overflow: hidden; background: var(--bg); }
+  #canvas {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  svg.wires path { pointer-events: stroke; }
+
+  .node {
+    position: absolute; background: var(--panel); border: 1.5px solid var(--block-edge,#33476e);
+    border-radius: 6px; min-width: 110px; z-index: 2; user-select: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  }
+  .node.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 4px 18px rgba(88,166,255,.3); }
+  .node.sim-hot { border-color: var(--hot); box-shadow: 0 0 12px rgba(255,93,108,.5); }
+  .node.sim-ok { border-color: var(--ok); }
+  .node.sim-counting { border-color: var(--warn); box-shadow: 0 0 12px rgba(255,192,77,.5); }
+  .node .node-head {
+    background: var(--panel-2); padding: 5px 8px; font-size: 11px; font-weight: 700;
+    color: var(--accent); border-radius: 5px 5px 0 0; cursor: move;
+    border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;
+  }
+  .node .node-head .kks { font-size: 8px; color: var(--muted); font-weight: 400; }
+  .node .node-body { padding: 6px 4px; position: relative; min-height: 20px; }
+  .node .param { font-size: 9px; color: var(--warn); text-align: center; padding: 1px; }
+
+  .ports { display: flex; justify-content: space-between; }
+  .ports .col { display: flex; flex-direction: column; gap: 3px; }
+  .port-row { display: flex; align-items: center; gap: 4px; font-size: 9px; height: 14px; }
+  .port-row.out { flex-direction: row-reverse; }
+  .port {
+    width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--bg);
+    cursor: crosshair; flex-shrink: 0; transition: .1s;
+  }
+  .port.in { background: var(--port-in); }
+  .port.out { background: var(--port-out); }
+  .port:hover { transform: scale(1.4); }
+  .port.sim-1 { box-shadow: 0 0 8px var(--hot); background: var(--hot); }
+  .port.sim-0 { opacity: .5; }
+  .port.inverted { background: #fff; border-color: var(--hot); }
+  .port-label { color: var(--muted); white-space: nowrap; }
+  .port-label .val { color: var(--ink); font-weight: 700; }
+  .port-val-1 { color: var(--hot) !important; }
+
+  .console {
+    grid-area: console; background: var(--panel-2); border-top: 1px solid var(--line);
+    border-right: 1px solid var(--line); overflow-y: auto; padding: 8px 12px; font-size: 10px;
+  }
+  .console .ln { padding: 2px 0; border-bottom: 1px dotted #1d2840; line-height: 1.5; }
+  .console .t { color: var(--muted); }
+  .console .ok { color: var(--ok); }
+  .console .hot { color: var(--hot); }
+  .console .warn { color: var(--warn); }
+  .console .info { color: var(--accent); }
+
+  .inspector {
+    grid-area: inspector; background: var(--panel); border-left: 1px solid var(--line);
+    overflow-y: auto; padding: 12px;
+  }
+  .inspector h3 { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
+  .inspector .field { margin-bottom: 10px; }
+  .inspector label { display: block; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3px; }
+  .inspector input, .inspector select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 6px 8px; font-family: inherit; font-size: 11px; border-radius: 4px;
+  }
+  .inspector input:focus, .inspector select:focus { outline: none; border-color: var(--accent); }
+  .inspector .empty { color: var(--muted); font-size: 11px; text-align: center; padding: 20px 0; }
+  .inspector .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+  .inspector button {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 7px; font-family: inherit; font-size: 10px; cursor: pointer; border-radius: 4px; text-transform: uppercase;
+  }
+  .inspector button:hover { border-color: var(--accent); color: var(--accent); }
+  .inspector button.danger:hover { border-color: var(--hot); color: var(--hot); }
+
+  .toggle-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 6px 10px; font-size: 11px; cursor: pointer; margin-bottom: 4px;
+  }
+  .toggle-btn .sw { width: 34px; height: 18px; background: #2a3550; border-radius: 9px; position: relative; transition: .15s; }
+  .toggle-btn .sw::after { content:''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: .15s; }
+  .toggle-btn.on .sw { background: var(--hot); }
+  .toggle-btn.on .sw::after { left: 18px; }
+
+  .hint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 5px 14px; border-radius: 20px; font-size: 10px; color: var(--muted); z-index: 5; pointer-events: none; }
+
+  .wire { stroke: #45597f; stroke-width: 2; fill: none; }
+  .wire:hover { stroke: var(--accent); }
+  .wire.sim-1 { stroke: var(--hot); stroke-width: 3; filter: drop-shadow(0 0 4px var(--hot)); }
+  .wire.sel { stroke: var(--accent); stroke-dasharray: 5 3; }
+  .wire-hit { stroke: transparent; stroke-width: 12; fill: none; cursor: pointer; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--panel-2); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
 </head>
 <body>
-  <div id="app">
-    <!-- Toolbar -->
-    <div id="toolbar">
-      <div class="toolbar-brand">FimaticCAD</div>
-      <div class="toolbar-group">
-        <button id="btn-new" title="Новый документ">☐ Новый</button>
-        <button id="btn-open" title="Открыть">📂 Открыть</button>
-        <button id="btn-save" title="Сохранить">💾 Сохранить</button>
-        <button id="btn-export-svg" title="Экспорт SVG">⬇ SVG</button>
-        <button id="btn-export-pdf" title="Экспорт PDF">⬇ PDF</button>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-undo" title="Отменить (Ctrl+Z)">↩ Отменить</button>
-        <button id="btn-redo" title="Повторить (Ctrl+Y)">↪ Повторить</button>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-select" class="active" title="Выбор (V)">↖ Выбор</button>
-        <button id="btn-connect" title="Соединить (C)">⟶ Связь</button>
-        <button id="btn-delete" title="Удалить (Del)">✕ Удалить</button>
-      </div>
-      <div class="toolbar-group">
-        <button id="btn-zoom-in" title="Приблизить (+)">＋</button>
-        <button id="btn-zoom-out" title="Отдалить (-)">－</button>
-        <button id="btn-zoom-fit" title="По размеру (F)">⊡ Вписать</button>
-      </div>
-      <input type="file" id="file-input" accept=".fcd,.json" style="display:none">
-    </div>
-
-    <div id="workspace">
-      <!-- Left Panel: Block Library -->
-      <div id="palette">
-        <div class="palette-title">Библиотека блоков</div>
-
-        <div class="palette-section">Логика</div>
-        <div class="palette-block" data-type="SEL3B" draggable="true">
-          <div class="pb-icon pb-sel3b">SEL3.B</div>
-          <div class="pb-label">SEL3.B (2-из-3)</div>
-        </div>
-        <div class="palette-block" data-type="AND2" draggable="true">
-          <div class="pb-icon pb-and">&amp;</div>
-          <div class="pb-label">AND (2 вх)</div>
-        </div>
-        <div class="palette-block" data-type="AND3" draggable="true">
-          <div class="pb-icon pb-and">&amp;</div>
-          <div class="pb-label">AND (3 вх)</div>
-        </div>
-        <div class="palette-block" data-type="OR2" draggable="true">
-          <div class="pb-icon pb-or">≥1</div>
-          <div class="pb-label">OR (2 вх)</div>
-        </div>
-        <div class="palette-block" data-type="NOT" draggable="true">
-          <div class="pb-icon pb-not">1</div>
-          <div class="pb-label">NOT</div>
-        </div>
-
-        <div class="palette-section">Сигналы входные</div>
-        <div class="palette-block" data-type="XH03" draggable="true">
-          <div class="pb-icon pb-signal">XH03</div>
-          <div class="pb-label">XH03 Аналог &gt;</div>
-        </div>
-        <div class="palette-block" data-type="XH05" draggable="true">
-          <div class="pb-icon pb-signal">XH05</div>
-          <div class="pb-label">XH05 Аналог &gt;</div>
-        </div>
-        <div class="palette-block" data-type="XH53" draggable="true">
-          <div class="pb-icon pb-signal">XH53</div>
-          <div class="pb-label">XH53 Уровень &lt;</div>
-        </div>
-        <div class="palette-block" data-type="XM26" draggable="true">
-          <div class="pb-icon pb-signal-m">XM26</div>
-          <div class="pb-label">XM26 Недостоверность</div>
-        </div>
-        <div class="palette-block" data-type="XQ01" draggable="true">
-          <div class="pb-icon pb-signal">XQ01</div>
-          <div class="pb-label">XQ01 Дискретный</div>
-        </div>
-
-        <div class="palette-section">Сигналы выходные</div>
-        <div class="palette-block" data-type="XK13" draggable="true">
-          <div class="pb-icon pb-output">XK13</div>
-          <div class="pb-label">XK13 Откл. СРАБ 1/3</div>
-        </div>
-        <div class="palette-block" data-type="XK18" draggable="true">
-          <div class="pb-icon pb-output">XK18</div>
-          <div class="pb-label">XK18 Откл. ДЕГРад 1</div>
-        </div>
-        <div class="palette-block" data-type="XK19" draggable="true">
-          <div class="pb-icon pb-output">XK19</div>
-          <div class="pb-label">XK19 Откл. ДЕГРад 2</div>
-        </div>
-        <div class="palette-block" data-type="XK90" draggable="true">
-          <div class="pb-icon pb-output">XK90</div>
-          <div class="pb-label">XK90 Откл. ОТКАЗ</div>
-        </div>
-        <div class="palette-block" data-type="XK95" draggable="true">
-          <div class="pb-icon pb-output">XK95</div>
-          <div class="pb-label">XK95 СРАБ</div>
-        </div>
-
-        <div class="palette-section">ВУ / СА</div>
-        <div class="palette-block" data-type="VU_SA" draggable="true">
-          <div class="pb-icon pb-vu">ВУ СА</div>
-          <div class="pb-label">ВУ СА</div>
-        </div>
-        <div class="palette-block" data-type="COMMENT" draggable="true">
-          <div class="pb-icon pb-comment">T</div>
-          <div class="pb-label">Текст / Комментарий</div>
-        </div>
-      </div>
-
-      <!-- Canvas -->
-      <div id="canvas-container">
-        <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="arrow-end" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-              <path d="M0,0 L0,6 L8,3 z" fill="#2563eb"/>
-            </marker>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
-            </pattern>
-          </defs>
-          <rect id="grid-bg" width="100%" height="100%" fill="url(#grid)"/>
-          <g id="connections-layer"></g>
-          <g id="blocks-layer"></g>
-          <line id="temp-wire" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,3" display="none"/>
-        </svg>
-      </div>
-
-      <!-- Right Panel: Properties -->
-      <div id="properties">
-        <div class="props-title">Свойства</div>
-        <div id="props-content">
-          <div class="props-hint">Выберите блок для редактирования свойств</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Status Bar -->
-    <div id="statusbar">
-      <span id="status-mode">Режим: Выбор</span>
-      <span id="status-pos">X: 0, Y: 0</span>
-      <span id="status-zoom">Масштаб: 100%</span>
-      <span id="status-blocks">Блоков: 0</span>
-    </div>
-
-    <!-- Context Menu -->
-    <div id="context-menu" class="hidden">
-      <div class="cm-item" id="cm-properties">Свойства</div>
-      <div class="cm-item" id="cm-duplicate">Дублировать</div>
-      <div class="cm-separator"></div>
-      <div class="cm-item cm-danger" id="cm-delete">Удалить</div>
-    </div>
+  <div class="topbar">
+    <div class="logo">FBD·<b>FIMATIC-CAD</b> editor</div>
+    <div class="sep"></div>
+    <button id="btnSample">пример: 10PAC10EE001</button>
+    <button id="btnClear">очистить</button>
+    <div class="sep"></div>
+    <button id="btnExport">экспорт JSON</button>
+    <button id="btnImport">импорт JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    <div class="spacer"></div>
+    <span class="status" id="status">режим: редактирование</span>
+    <div class="sep"></div>
+    <select id="simMode" style="background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:7px;font-family:inherit;font-size:11px;border-radius:4px;">
+      <option value="live">отладка: реальное время</option>
+      <option value="step">отладка: пошагово</option>
+    </select>
+    <button id="btnStep">шаг ▶</button>
+    <button id="btnRun" class="run">▶ отладка</button>
   </div>
 
-  <script src="app.js"></script>
+  <div class="palette" id="palette"></div>
+
+  <div class="canvas-wrap">
+    <div id="canvas"></div>
+    <svg class="wires" id="wires"></svg>
+    <div class="hint" id="hint">Перетащите блок из палитры · соедините порты кликом по выходу, затем по входу</div>
+  </div>
+
+  <div class="console" id="console">
+    <div class="ln"><span class="t">[готов]</span> <span class="info">среда загружена. Загрузите пример или соберите схему вручную.</span></div>
+  </div>
+
+  <div class="inspector" id="inspector">
+    <h3>Свойства блока</h3>
+    <div class="empty">Блок не выбран</div>
+  </div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// FBD-редактор · логика блоков по описанию функциональных блоков FIMATIC-CAD
+// АКЕТ.120300.001 П9-03, Часть 4
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Определения типов блоков ────────────────────────────────────────────────
+// kind: BOOL (дискр.) / REAL (аналог.)
+// eval(inputs, params, state) -> {outputs:{}, state:{}}   inputs: имя->значение
+// dt — шаг такта симуляции в секундах
+let DT = 0.2; // реально прошедшее время за такт (сек), пересчитывается в реальном времени
+const TICK_MS = 50; // частота обновления экрана/таймеров
+
+const BLOCKS = {
+  // ── Источники ──────────────────────────────────────────────────────────
+  'CROSS.LINK.IN': {
+    cat: 'Входные', desc: 'приём сигнала из др. алгоритмов/систем',
+    ins: [], outs: [{n:'out', t:'BOOL'}],
+    params: { kks:'10PAC10CT001', ext:'XH03', limit:'>140', value:0 },
+    isSource: true,
+    eval: (i,p) => ({ outputs: { out: p.value ? 1 : 0 } })
+  },
+  'BI': {
+    cat: 'Входные', desc: 'дискретный вход из канала',
+    ins: [], outs: [{n:'out', t:'BOOL'}],
+    params: { kks:'', value:0 }, isSource: true,
+    eval: (i,p) => ({ outputs: { out: p.value ? 1 : 0 } })
+  },
+  'AI': {
+    cat: 'Входные', desc: 'аналоговый вход из канала',
+    ins: [], outs: [{n:'out', t:'REAL'}],
+    params: { kks:'', value:0 }, isSource: true,
+    eval: (i,p) => ({ outputs: { out: Number(p.value)||0 } })
+  },
+  'CONST.B': {
+    cat: 'Входные', desc: 'постоянная дискретная величина',
+    ins: [], outs: [{n:'out', t:'BOOL'}],
+    params: { value:1 }, isSource: true,
+    eval: (i,p) => ({ outputs: { out: p.value ? 1 : 0 } })
+  },
+  'CONST.A': {
+    cat: 'Входные', desc: 'постоянная аналоговая величина',
+    ins: [], outs: [{n:'out', t:'REAL'}],
+    params: { value:0 }, isSource: true,
+    eval: (i,p) => ({ outputs: { out: Number(p.value)||0 } })
+  },
+  'LINK.IN': {
+    cat: 'Входные', desc: 'приём сигнала на одной странице',
+    ins: [], outs: [{n:'out', t:'BOOL'}],
+    params: { name:'', value:0 }, isSource: true,
+    eval: (i,p) => ({ outputs: { out: p.value?1:0 } })
+  },
+
+  // ── Логические ─────────────────────────────────────────────────────────
+  'AND': {
+    cat: 'Логические', desc: 'логическое «И», 2..16 входов',
+    dynIn: true, ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}],
+    params: {},
+    eval: (i) => {
+      const vals = Object.values(i);
+      const r = vals.length && vals.every(v => v === 1) ? 1 : 0;
+      return { outputs: { out: r } };
+    }
+  },
+  'OR': {
+    cat: 'Логические', desc: 'логическое «ИЛИ», 2..16 входов',
+    dynIn: true, ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}],
+    params: {},
+    eval: (i) => ({ outputs: { out: Object.values(i).some(v=>v===1) ? 1 : 0 } })
+  },
+  'NOT': {
+    cat: 'Логические', desc: 'инверсия дискретного сигнала',
+    ins: [{n:'a',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: i.a ? 0 : 1 } })
+  },
+  'XOR': {
+    cat: 'Логические', desc: 'исключающее «ИЛИ»',
+    ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (i.BI1?1:0) !== (i.BI2?1:0) ? 1 : 0 } })
+  },
+
+  // ── Выбор ──────────────────────────────────────────────────────────────
+  'SEL3.B': {
+    cat: 'Выбор', desc: 'выбор из трёх дискр. сигналов (1/2/3 из 3)',
+    ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'},{n:'BI3',t:'BOOL'}],
+    outs: [{n:'IN1V3',t:'BOOL'},{n:'IN2V3',t:'BOOL'},{n:'IN3V3',t:'BOOL'},{n:'INM',t:'BOOL'}],
+    params: { T: 1.0 },
+    eval: (i,p,st) => {
+      const c = (i.BI1?1:0)+(i.BI2?1:0)+(i.BI3?1:0);
+      const out = { IN1V3:0, IN2V3:0, IN3V3:0, INM:0 };
+      // INM формируется когда ровно 1 из 3 = расхождение, с выдержкой T
+      let timer = st.timer || 0;
+      if (c === 1) {
+        out.IN1V3 = 1;
+        timer += DT;
+        out.INM = timer >= (Number(p.T)||0) ? 1 : 0;
+      } else if (c === 2) {
+        out.IN2V3 = 1; out.INM = 0; timer = 0;
+      } else if (c === 3) {
+        out.IN3V3 = 1; out.INM = 0; timer = 0;
+      } else {
+        timer = 0;
+      }
+      return { outputs: out, state: { timer } };
+    }
+  },
+  'SEL2.B': {
+    cat: 'Выбор', desc: 'выбор из двух дискр. сигналов',
+    ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'}],
+    outs: [{n:'IN1V2',t:'BOOL'},{n:'IN2V2',t:'BOOL'},{n:'INM',t:'BOOL'}],
+    params: { T: 1.0 },
+    eval: (i,p,st) => {
+      const c = (i.BI1?1:0)+(i.BI2?1:0);
+      const out = { IN1V2:0, IN2V2:0, INM:0 };
+      let timer = st.timer || 0;
+      if (c === 1) { out.IN1V2=1; timer+=DT; out.INM = timer>=(Number(p.T)||0)?1:0; }
+      else if (c === 2) { out.IN2V2=1; out.INM=0; timer=0; }
+      else { timer=0; }
+      return { outputs: out, state: { timer } };
+    }
+  },
+
+  'SEL4.B': {
+    cat: 'Выбор', desc: 'выбор из четырёх дискр. сигналов',
+    ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'},{n:'BI3',t:'BOOL'},{n:'BI4',t:'BOOL'}],
+    outs: [{n:'IN1V4',t:'BOOL'},{n:'IN2V4',t:'BOOL'},{n:'IN3V4',t:'BOOL'},{n:'IN4V4',t:'BOOL'},{n:'INM',t:'BOOL'}],
+    params: { T: 1.0 },
+    eval: (i,p,st) => {
+      const c=(i.BI1?1:0)+(i.BI2?1:0)+(i.BI3?1:0)+(i.BI4?1:0);
+      const out={IN1V4:0,IN2V4:0,IN3V4:0,IN4V4:0,INM:0};
+      let timer=st.timer||0;
+      if(c===1){out.IN1V4=1;timer+=DT;out.INM=timer>=(Number(p.T)||0)?1:0;}
+      else if(c===2){out.IN2V4=1;timer=0;}
+      else if(c===3){out.IN3V4=1;timer=0;}
+      else if(c===4){out.IN4V4=1;timer=0;}
+      else timer=0;
+      return {outputs:out,state:{timer}};
+    }
+  },
+  '2V3.B': {
+    cat: 'Выбор', desc: '«2 из 3» с деградацией (учёт достоверности)',
+    ins: [{n:'BI1',t:'BOOL'},{n:'BI2',t:'BOOL'},{n:'BI3',t:'BOOL'},{n:'VL1',t:'BOOL'},{n:'VL2',t:'BOOL'},{n:'VL3',t:'BOOL'}],
+    outs: [{n:'BO',t:'BOOL'}],
+    params: {},
+    eval: (i) => {
+      // VL = достоверность канала (1 = достоверен). По умолчанию считаем достоверным.
+      const vl1 = i.VL1===undefined?1:i.VL1, vl2 = i.VL2===undefined?1:i.VL2, vl3 = i.VL3===undefined?1:i.VL3;
+      const valid = [], bi=[i.BI1?1:0,i.BI2?1:0,i.BI3?1:0], vl=[vl1?1:0,vl2?1:0,vl3?1:0];
+      for(let k=0;k<3;k++) if(vl[k]) valid.push(bi[k]);
+      let bo=0;
+      if(valid.length===3) bo = (valid.reduce((a,b)=>a+b,0) >= 2) ? 1:0;       // 2 из 3
+      else if(valid.length===2) bo = (valid.reduce((a,b)=>a+b,0) >= 1) ? 1:0;  // деградация 1 из 2
+      else if(valid.length===1) bo = valid[0];                                  // 1 из 1
+      return { outputs: { BO: bo } };
+    }
+  },
+  'MAX3': {
+    cat: 'Выбор', desc: 'максимум из трёх аналоговых',
+    ins: [{n:'AI1',t:'REAL'},{n:'AI2',t:'REAL'},{n:'AI3',t:'REAL'}], outs: [{n:'AO',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { AO: Math.max(Number(i.AI1)||0,Number(i.AI2)||0,Number(i.AI3)||0) } })
+  },
+  'MIN3': {
+    cat: 'Выбор', desc: 'минимум из трёх аналоговых',
+    ins: [{n:'AI1',t:'REAL'},{n:'AI2',t:'REAL'},{n:'AI3',t:'REAL'}], outs: [{n:'AO',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { AO: Math.min(Number(i.AI1)||0,Number(i.AI2)||0,Number(i.AI3)||0) } })
+  },
+  'MED3.A': {
+    cat: 'Выбор', desc: 'медиана трёх аналоговых сигналов',
+    ins: [{n:'AI1',t:'REAL'},{n:'AI2',t:'REAL'},{n:'AI3',t:'REAL'}], outs: [{n:'AO',t:'REAL'}], params: {},
+    eval: (i) => {
+      const a=[Number(i.AI1)||0,Number(i.AI2)||0,Number(i.AI3)||0].sort((x,y)=>x-y);
+      return { outputs: { AO: a[1] } };
+    }
+  },
+  'MAX': {
+    cat: 'Выбор', desc: 'максимум из двух аналоговых',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: Math.max(Number(i.a)||0,Number(i.b)||0) } })
+  },
+  'MIN': {
+    cat: 'Выбор', desc: 'минимум из двух аналоговых',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: Math.min(Number(i.a)||0,Number(i.b)||0) } })
+  },
+  'ALIMIT': {
+    cat: 'Выбор', desc: 'ограничитель [min..max]',
+    ins: [{n:'in',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: { min:0, max:100 },
+    eval: (i,p) => ({ outputs: { out: Math.max(Number(p.min)||0, Math.min(Number(p.max)||0, Number(i.in)||0)) } })
+  },
+
+  // ── Арифметические ─────────────────────────────────────────────────────
+  'ADD': {
+    cat: 'Арифметика', desc: 'сложение a + b',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0)+(Number(i.b)||0) } })
+  },
+  'SUB': {
+    cat: 'Арифметика', desc: 'вычитание a − b',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0)-(Number(i.b)||0) } })
+  },
+  'MUL': {
+    cat: 'Арифметика', desc: 'умножение a × b',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0)*(Number(i.b)||0) } })
+  },
+  'DIV': {
+    cat: 'Арифметика', desc: 'деление a ÷ b',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => { const b=Number(i.b)||0; return { outputs: { out: b===0?0:(Number(i.a)||0)/b } }; }
+  },
+  'ABS': {
+    cat: 'Арифметика', desc: 'абсолютное значение |a|',
+    ins: [{n:'a',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: Math.abs(Number(i.a)||0) } })
+  },
+  'SQRT': {
+    cat: 'Арифметика', desc: 'квадратный корень √a',
+    ins: [{n:'a',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: Math.sqrt(Math.max(0,Number(i.a)||0)) } })
+  },
+  'INVERS.A': {
+    cat: 'Арифметика', desc: 'инверсия аналогового (−a)',
+    ins: [{n:'a',t:'REAL'}], outs: [{n:'out',t:'REAL'}], params: {},
+    eval: (i) => ({ outputs: { out: -(Number(i.a)||0) } })
+  },
+
+  // ── Сравнение ────────────────────────────────────────────────────────────
+  'GT': {
+    cat: 'Сравнение', desc: 'a > b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) > (Number(i.b)||0) ? 1:0 } })
+  },
+  'GE': {
+    cat: 'Сравнение', desc: 'a ≥ b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) >= (Number(i.b)||0) ? 1:0 } })
+  },
+  'LT': {
+    cat: 'Сравнение', desc: 'a < b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) < (Number(i.b)||0) ? 1:0 } })
+  },
+  'LE': {
+    cat: 'Сравнение', desc: 'a ≤ b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) <= (Number(i.b)||0) ? 1:0 } })
+  },
+  'EQ': {
+    cat: 'Сравнение', desc: 'a = b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) === (Number(i.b)||0) ? 1:0 } })
+  },
+  'NEQ': {
+    cat: 'Сравнение', desc: 'a ≠ b → 1',
+    ins: [{n:'a',t:'REAL'},{n:'b',t:'REAL'}], outs: [{n:'out',t:'BOOL'}], params: {},
+    eval: (i) => ({ outputs: { out: (Number(i.a)||0) !== (Number(i.b)||0) ? 1:0 } })
+  },
+  'HYST': {
+    cat: 'Сравнение', desc: 'гистерезис: пороги LL/UL → BO1',
+    ins: [{n:'AI',t:'REAL'}], outs: [{n:'BO1',t:'BOOL'}],
+    params: { LL: 0, UL: 100, Type: '>' },
+    eval: (i,p,st) => {
+      const ai = Number(i.AI)||0, LL = Number(p.LL)||0, UL = Number(p.UL)||0;
+      let prev = st.prev || 0, bo;
+      if (p.Type === '>') {
+        if (ai > UL) bo = 1; else if (ai < LL) bo = 0; else bo = prev;
+      } else {
+        if (ai < LL) bo = 1; else if (ai > UL) bo = 0; else bo = prev;
+      }
+      return { outputs: { BO1: bo }, state: { prev: bo } };
+    }
+  },
+
+  // ── Триггеры ───────────────────────────────────────────────────────────
+  'RS': {
+    cat: 'Триггеры', desc: 'RS-триггер (приоритет R или S)',
+    ins: [{n:'S',t:'BOOL'},{n:'R',t:'BOOL'}], outs: [{n:'Q',t:'BOOL'}],
+    params: { Type: 'R' }, // R = приоритет сброса, S = приоритет установки
+    eval: (i,p,st) => {
+      let q = st.q || 0;
+      const S = i.S?1:0, R = i.R?1:0;
+      if (p.Type === 'R') { // приоритет сброса
+        if (R) q = 0; else if (S) q = 1;
+      } else { // приоритет установки
+        if (S) q = 1; else if (R) q = 0;
+      }
+      return { outputs: { Q: q }, state: { q } };
+    }
+  },
+
+  'RF_TRIG': {
+    cat: 'Триггеры', desc: 'импульс по фронту (1 такт)',
+    ins: [{n:'in',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}], params: { Type: 'R' },
+    eval: (i,p,st) => {
+      const cur = i.in?1:0, prev = st.prev===undefined?0:st.prev;
+      let out = 0;
+      if (p.Type === 'R') out = (cur===1 && prev===0) ? 1:0;
+      else out = (cur===0 && prev===1) ? 1:0;
+      return { outputs: { out }, state: { prev: cur } };
+    }
+  },
+  'NRS': {
+    cat: 'Триггеры', desc: 'RS-триггер со счётным входом N',
+    ins: [{n:'S',t:'BOOL'},{n:'R',t:'BOOL'},{n:'N',t:'BOOL'}], outs: [{n:'Q',t:'BOOL'}],
+    params: { Type: 'R' },
+    eval: (i,p,st) => {
+      let q = st.q||0; const S=i.S?1:0,R=i.R?1:0,N=i.N?1:0, pn = st.pn===undefined?0:st.pn;
+      if (S||R) {
+        if (p.Type==='R') { if(R) q=0; else if(S) q=1; }
+        else { if(S) q=1; else if(R) q=0; }
+      } else {
+        if (N===1 && pn===0) q = q?0:1;
+      }
+      return { outputs: { Q: q }, state: { q, pn: N } };
+    }
+  },
+  'CTU': {
+    cat: 'Счётчики', desc: 'возрастающий счётчик (Q при CV≥PV)',
+    ins: [{n:'CU',t:'BOOL'},{n:'R',t:'BOOL'}], outs: [{n:'Q',t:'BOOL'},{n:'CV',t:'REAL'}],
+    params: { PV: 5 },
+    eval: (i,p,st) => {
+      let cv = st.cv||0; const PV=Number(p.PV)||0, pcu = st.pcu===undefined?0:st.pcu, CU=i.CU?1:0;
+      if (i.R) cv = 0;
+      else if (CU===1 && pcu===0 && cv < PV) cv += 1;
+      return { outputs: { Q: cv>=PV?1:0, CV: cv }, state: { cv, pcu: CU } };
+    }
+  },
+  'CTD': {
+    cat: 'Счётчики', desc: 'убывающий счётчик (Q при CV≤0)',
+    ins: [{n:'CD',t:'BOOL'},{n:'LD',t:'BOOL'}], outs: [{n:'Q',t:'BOOL'},{n:'CV',t:'REAL'}],
+    params: { PV: 5 },
+    eval: (i,p,st) => {
+      const PV=Number(p.PV)||0; let cv = st.cv===undefined?PV:st.cv;
+      const pcd = st.pcd===undefined?0:st.pcd, CD=i.CD?1:0;
+      if (i.LD) cv = PV;
+      else if (CD===1 && pcd===0 && cv > 0) cv -= 1;
+      return { outputs: { Q: cv<=0?1:0, CV: cv }, state: { cv, pcd: CD } };
+    }
+  },
+
+  // ── Таймеры ──────────────────────────────────────────────────────────────
+  'TON': {
+    cat: 'Таймеры', desc: 'задержка по включению (T сек)',
+    ins: [{n:'in',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}], params: { T: 1.0 },
+    eval: (i,p,st) => {
+      const T = Number(p.T)||0;
+      let timer = st.timer || 0;
+      if (i.in) {
+        timer = Math.min(T, Math.round((timer + DT)*1000)/1000);
+      } else {
+        timer = 0;
+      }
+      const out = (i.in && timer >= T) ? 1 : 0;
+      // remaining: сколько осталось до срабатывания
+      return { outputs: { out }, state: { timer }, elapsed: timer, T, remaining: Math.max(0, T - timer), counting: (!!i.in && timer < T) };
+    }
+  },
+  'TOF': {
+    cat: 'Таймеры', desc: 'задержка по выключению (T сек)',
+    ins: [{n:'in',t:'BOOL'}], outs: [{n:'out',t:'BOOL'}], params: { T: 1.0 },
+    eval: (i,p,st) => {
+      const T = Number(p.T)||0;
+      const prevIn = st.prevIn===undefined ? 0 : st.prevIn;
+      // timer = оставшееся время удержания выхода после спада входа
+      let timer = st.timer===undefined ? 0 : st.timer;
+      let out;
+      if (i.in) {
+        timer = T; out = 1;                       // вход активен — выход 1, таймер взведён на T
+      } else {
+        // вход снят
+        if (prevIn === 1) timer = T;              // момент спада — перезапуск отсчёта
+        timer = Math.max(0, Math.round((timer - DT)*1000)/1000);
+        out = timer > 0 ? 1 : 0;                  // держим, пока есть остаток
+      }
+      return { outputs: { out }, state: { timer, prevIn: i.in?1:0 }, elapsed: timer, T, remaining: timer, counting: (!i.in && timer > 0) };
+    }
+  },
+
+  // ── Выходы ─────────────────────────────────────────────────────────────
+  'CROSS.LINK.OUT': {
+    cat: 'Выходные', desc: 'передача сигнала в др. системы/алгоритмы',
+    ins: [{n:'in',t:'BOOL'}], outs: [], params: { kks:'10CMT31', ext:'XK13', desc:'СРАБ 1 ИЗ 3' },
+    isSink: true,
+    eval: (i) => ({ outputs: {}, sink: i.in?1:0 })
+  },
+  'BO': {
+    cat: 'Выходные', desc: 'дискретный выход в канал',
+    ins: [{n:'in',t:'BOOL'}], outs: [], params: { kks:'' }, isSink: true,
+    eval: (i) => ({ outputs: {}, sink: i.in?1:0 })
+  },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Состояние схемы
+// ════════════════════════════════════════════════════════════════════════════
+let nodes = [];   // {id, type, x, y, params, dynInCount, invOut:{port:bool}, invIn:{port:bool}}
+let links = [];   // {id, from:{node,port}, to:{node,port}}
+let nodeSeq = 1, linkSeq = 1;
+let selectedNode = null;
+let pendingLink = null; // {node, port} when wiring
+let simRunning = false;
+let simTimer = null;
+let simStates = {}; // nodeId -> internal state
+let portValues = {}; // "nodeId.port" -> 0/1/number
+
+const canvas = document.getElementById('canvas');
+const wiresSvg = document.getElementById('wires');
+const inspector = document.getElementById('inspector');
+const consoleEl = document.getElementById('console');
+const statusEl = document.getElementById('status');
+
+// ── Палитра ──────────────────────────────────────────────────────────────
+function buildPalette() {
+  const pal = document.getElementById('palette');
+  const cats = {};
+  for (const [type, def] of Object.entries(BLOCKS)) {
+    (cats[def.cat] = cats[def.cat] || []).push([type, def]);
+  }
+  const order = ['Входные','Логические','Выбор','Арифметика','Сравнение','Триггеры','Счётчики','Таймеры','Выходные'];
+  pal.innerHTML = '';
+  order.forEach(cat => {
+    if (!cats[cat]) return;
+    const h = document.createElement('h3'); h.textContent = cat; pal.appendChild(h);
+    cats[cat].forEach(([type, def]) => {
+      const it = document.createElement('div');
+      it.className = 'pal-item'; it.draggable = true;
+      it.innerHTML = `<span class="tag">${type}</span><span class="desc">${def.desc}</span>`;
+      it.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
+      it.addEventListener('dblclick', () => addNode(type, 60 + Math.random()*200, 60 + Math.random()*200));
+      pal.appendChild(it);
+    });
+  });
+}
+
+// ── Лог ──────────────────────────────────────────────────────────────────
+function log(msg, cls='') {
+  const ln = document.createElement('div');
+  ln.className = 'ln';
+  const t = new Date().toLocaleTimeString('ru-RU',{hour12:false});
+  ln.innerHTML = `<span class="t">[${t}]</span> <span class="${cls}">${msg}</span>`;
+  consoleEl.appendChild(ln);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+// ── Добавление узла ────────────────────────────────────────────────────────
+function addNode(type, x, y) {
+  const def = BLOCKS[type];
+  if (!def) return;
+  const node = {
+    id: 'n' + (nodeSeq++), type, x, y,
+    params: JSON.parse(JSON.stringify(def.params || {})),
+    dynInCount: def.dynIn ? 2 : null,
+    invOut: {}, invIn: {}
+  };
+  nodes.push(node);
+  renderNode(node);
+  log(`добавлен блок ${type} (${node.id})`, 'info');
+  scheduleSave();
+  return node;
+}
+
+function nodeIns(node) {
+  const def = BLOCKS[node.type];
+  if (def.dynIn) {
+    const arr = [];
+    for (let k=1;k<=node.dynInCount;k++) arr.push({n:'BI'+k, t:'BOOL'});
+    return arr;
+  }
+  return def.ins;
+}
+
+// ── Рендер узла ────────────────────────────────────────────────────────────
+function renderNode(node) {
+  const def = BLOCKS[node.type];
+  let elNode = document.getElementById(node.id);
+  if (!elNode) {
+    elNode = document.createElement('div');
+    elNode.className = 'node'; elNode.id = node.id;
+    canvas.appendChild(elNode);
+  }
+  elNode.style.left = node.x + 'px';
+  elNode.style.top = node.y + 'px';
+
+  const ins = nodeIns(node);
+  const outs = def.outs;
+
+  // param preview line
+  let paramStr = '';
+  if (node.type === 'SEL3.B' || node.type === 'SEL2.B' || node.type === 'SEL4.B' || node.type === 'TON' || node.type === 'TOF') paramStr = `T=${node.params.T}`;
+  else if (node.type === 'RS' || node.type === 'NRS') paramStr = `Type=${node.params.Type}`;
+  else if (node.type === 'RF_TRIG') paramStr = `фронт=${node.params.Type}`;
+  else if (node.type === 'HYST') paramStr = `${node.params.Type} LL=${node.params.LL} UL=${node.params.UL}`;
+  else if (node.type === 'CTU' || node.type === 'CTD') paramStr = `PV=${node.params.PV}`;
+  else if (node.type === 'ALIMIT') paramStr = `[${node.params.min}..${node.params.max}]`;
+  else if (node.type === 'CROSS.LINK.IN') paramStr = `${node.params.ext} ${node.params.limit||''}`;
+  else if (node.type === 'CROSS.LINK.OUT') paramStr = `${node.params.ext}`;
+  else if (node.type === 'CONST.B' || node.type === 'CONST.A') paramStr = `=${node.params.value}`;
+
+  let kks = node.params.kks || '';
+
+  const inRows = ins.map(p => {
+    const inv = node.invIn[p.n] ? ' inverted' : '';
+    return `<div class="port-row in"><div class="port in${inv}" data-port="${p.n}" data-dir="in"></div><span class="port-label">${p.n} <span class="val" id="pv-${node.id}-${p.n}">·</span></span></div>`;
+  }).join('');
+
+  const outRows = outs.map(p => {
+    const inv = node.invOut[p.n] ? ' inverted' : '';
+    return `<div class="port-row out"><div class="port out${inv}" data-port="${p.n}" data-dir="out"></div><span class="port-label"><span class="val" id="pv-${node.id}-${p.n}">·</span> ${p.n}</span></div>`;
+  }).join('');
+
+  elNode.innerHTML = `
+    <div class="node-head">
+      <span>${node.type}</span>
+      <span class="kks">${kks}</span>
+    </div>
+    <div class="node-body">
+      ${paramStr ? `<div class="param">${paramStr}</div>` : ''}
+      <div class="ports">
+        <div class="col">${inRows}</div>
+        <div class="col">${outRows}</div>
+      </div>
+    </div>`;
+
+  // drag by head
+  const head = elNode.querySelector('.node-head');
+  head.addEventListener('mousedown', e => startDragNode(e, node));
+  elNode.addEventListener('mousedown', e => { selectNode(node); });
+
+  // port click for wiring
+  elNode.querySelectorAll('.port').forEach(pe => {
+    pe.addEventListener('click', e => {
+      e.stopPropagation();
+      onPortClick(node, pe.dataset.port, pe.dataset.dir);
+    });
+    pe.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      // toggle inversion
+      const dir = pe.dataset.dir, port = pe.dataset.port;
+      if (dir === 'out') node.invOut[port] = !node.invOut[port];
+      else node.invIn[port] = !node.invIn[port];
+      renderNode(node); drawWires();
+      log(`инверсия порта ${node.type}.${port} = ${(dir==='out'?node.invOut[port]:node.invIn[port])}`, 'warn');
+    });
+  });
+}
+
+// ── Перемещение узла ───────────────────────────────────────────────────────
+let dragCtx = null;
+function startDragNode(e, node) {
+  e.preventDefault();
+  selectNode(node);
+  const rect = canvas.getBoundingClientRect();
+  dragCtx = { node, ox: e.clientX - node.x, oy: e.clientY - node.y };
+  document.addEventListener('mousemove', onDragNode);
+  document.addEventListener('mouseup', stopDragNode);
+}
+function onDragNode(e) {
+  if (!dragCtx) return;
+  dragCtx.node.x = Math.max(0, e.clientX - dragCtx.ox);
+  dragCtx.node.y = Math.max(0, e.clientY - dragCtx.oy);
+  const el = document.getElementById(dragCtx.node.id);
+  el.style.left = dragCtx.node.x + 'px';
+  el.style.top = dragCtx.node.y + 'px';
+  drawWires();
+}
+function stopDragNode() {
+  dragCtx = null;
+  document.removeEventListener('mousemove', onDragNode);
+  document.removeEventListener('mouseup', stopDragNode);
+}
+
+// ── Соединение портов ────────────────────────────────────────────────────────
+function onPortClick(node, port, dir) {
+  if (!pendingLink) {
+    if (dir !== 'out') { log('начните соединение с выходного порта (зелёный)', 'warn'); return; }
+    pendingLink = { node: node.id, port };
+    document.getElementById('hint').textContent = `соединение от ${node.type}.${port} — кликните по входному порту`;
+    log(`соединение: от ${node.type}.${port}...`, 'info');
+  } else {
+    if (dir !== 'in') { log('завершите соединение на входном порту (синий)', 'warn'); return; }
+    // prevent self & duplicate input
+    if (pendingLink.node === node.id) { log('нельзя соединить блок сам с собой', 'warn'); pendingLink=null; resetHint(); return; }
+    links = links.filter(l => !(l.to.node === node.id && l.to.port === port)); // 1 источник на вход
+    links.push({ id:'l'+(linkSeq++), from:{...pendingLink}, to:{node:node.id, port} });
+    log(`связь создана → ${node.type}.${port}`, 'ok');
+    pendingLink = null; resetHint(); drawWires(); scheduleSave();
+  }
+}
+function resetHint() { document.getElementById('hint').textContent = 'Перетащите блок из палитры · соедините порты кликом по выходу, затем по входу'; }
+
+// ── Координаты портов ────────────────────────────────────────────────────────
+function portPos(nodeId, port, dir) {
+  const el = document.getElementById('pv-' + nodeId + '-' + port);
+  if (!el) return null;
+  const portEl = el.closest('.port-row').querySelector('.port');
+  const r = portEl.getBoundingClientRect();
+  const c = canvas.getBoundingClientRect();
+  return { x: r.left + r.width/2 - c.left, y: r.top + r.height/2 - c.top };
+}
+
+function drawWires() {
+  wiresSvg.innerHTML = '';
+  links.forEach(l => {
+    const a = portPos(l.from.node, l.from.port, 'out');
+    const b = portPos(l.to.node, l.to.port, 'in');
+    if (!a || !b) return;
+    const dx = Math.abs(b.x - a.x) * 0.5;
+    const d = `M ${a.x} ${a.y} C ${a.x+dx} ${a.y}, ${b.x-dx} ${b.y}, ${b.x} ${b.y}`;
+    const val = portValues[l.from.node + '.' + l.from.port];
+    const simCls = (simRunning && val === 1) ? ' sim-1' : '';
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+    hit.setAttribute('d', d); hit.setAttribute('class','wire-hit');
+    hit.addEventListener('click', () => { links = links.filter(x=>x.id!==l.id); drawWires(); log('связь удалена','warn'); scheduleSave(); });
+    wiresSvg.appendChild(hit);
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d', d); p.setAttribute('class','wire'+simCls);
+    wiresSvg.appendChild(p);
+  });
+}
+
+// ── Выбор узла + инспектор ────────────────────────────────────────────────────
+function selectNode(node) {
+  selectedNode = node;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  const el = document.getElementById(node.id);
+  if (el) el.classList.add('selected');
+  renderInspector();
+}
+
+function renderInspector() {
+  if (!selectedNode) { inspector.innerHTML = '<h3>Свойства блока</h3><div class="empty">Блок не выбран</div>'; return; }
+  const node = selectedNode, def = BLOCKS[node.type];
+  let html = `<h3>${node.type} · ${node.id}</h3>`;
+  html += `<div class="field" style="font-size:9px;color:var(--muted)">${def.desc}</div>`;
+
+  // dynamic inputs count
+  if (def.dynIn) {
+    html += `<div class="field"><label>число входов (2..16)</label><input type="number" min="2" max="16" id="ip-dynIn" value="${node.dynInCount}"></div>`;
+  }
+
+  for (const [k,v] of Object.entries(node.params)) {
+    if (k === 'value' && (node.type==='CROSS.LINK.IN'||node.type==='BI'||node.type==='CONST.B'||node.type==='LINK.IN')) {
+      html += `<div class="toggle-btn ${v?'on':''}" id="tg-value"><span>значение сигнала (0/1)</span><div class="sw"></div></div>`;
+    } else if (k === 'value' && (node.type==='AI'||node.type==='CONST.A')) {
+      html += `<div class="field"><label>аналоговое значение</label><input type="number" id="ip-${k}" value="${v}" step="any"></div>`;
+    } else if (k === 'Type' && (node.type==='RS'||node.type==='NRS')) {
+      html += `<div class="field"><label>приоритет (R=сброс / S=установка)</label><select id="ip-Type"><option value="R" ${v==='R'?'selected':''}>R — приоритет сброса</option><option value="S" ${v==='S'?'selected':''}>S — приоритет установки</option></select></div>`;
+    } else if (k === 'Type' && node.type==='RF_TRIG') {
+      html += `<div class="field"><label>фронт (R=передний / F=задний)</label><select id="ip-Type"><option value="R" ${v==='R'?'selected':''}>R — передний фронт</option><option value="F" ${v==='F'?'selected':''}>F — задний фронт</option></select></div>`;
+    } else if (k === 'Type' && node.type==='HYST') {
+      html += `<div class="field"><label>тип уставки</label><select id="ip-Type"><option value=">" ${v==='>'?'selected':''}>&gt; больше</option><option value="<" ${v==='<'?'selected':''}>&lt; меньше</option></select></div>`;
+    } else if (['T','PV','LL','UL','min','max'].includes(k)) {
+      html += `<div class="field"><label>${k}</label><input type="number" id="ip-${k}" value="${v}" step="any"></div>`;
+    } else {
+      html += `<div class="field"><label>${k}</label><input type="text" id="ip-${k}" value="${v}"></div>`;
+    }
+  }
+
+  html += `<div class="btn-row"><button id="btnDup">дублировать</button><button id="btnDel" class="danger">удалить</button></div>`;
+  inspector.innerHTML = html;
+
+  // bind
+  if (def.dynIn) {
+    document.getElementById('ip-dynIn').addEventListener('change', e => {
+      node.dynInCount = Math.max(2, Math.min(16, parseInt(e.target.value)||2));
+      // remove links to removed ports
+      const valid = nodeIns(node).map(p=>p.n);
+      links = links.filter(l => !(l.to.node===node.id && !valid.includes(l.to.port)));
+      renderNode(node); drawWires(); scheduleSave();
+    });
+  }
+  for (const k of Object.keys(node.params)) {
+    const ip = document.getElementById('ip-'+k);
+    if (ip) ip.addEventListener('input', e => {
+      node.params[k] = e.target.value;
+      renderNode(node); drawWires(); scheduleSave();
+    });
+  }
+  const tg = document.getElementById('tg-value');
+  if (tg) tg.addEventListener('click', () => {
+    node.params.value = node.params.value ? 0 : 1;
+    tg.classList.toggle('on', !!node.params.value);
+    renderNode(node); drawWires(); scheduleSave();
+    if (simRunning) computeStep(false);
+  });
+  document.getElementById('btnDel').addEventListener('click', () => deleteNode(node));
+  document.getElementById('btnDup').addEventListener('click', () => {
+    const c = addNode(node.type, node.x+30, node.y+30);
+    c.params = JSON.parse(JSON.stringify(node.params));
+    c.dynInCount = node.dynInCount; c.invOut={...node.invOut}; c.invIn={...node.invIn};
+    renderNode(c);
+  });
+}
+
+function deleteNode(node) {
+  links = links.filter(l => l.from.node!==node.id && l.to.node!==node.id);
+  nodes = nodes.filter(n => n.id!==node.id);
+  const el = document.getElementById(node.id); if (el) el.remove();
+  if (selectedNode===node) { selectedNode=null; renderInspector(); }
+  drawWires(); log(`блок ${node.type} удалён`, 'warn'); scheduleSave();
+}
+
+// ── Drop из палитры ──────────────────────────────────────────────────────────
+canvas.addEventListener('dragover', e => e.preventDefault());
+canvas.addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('type');
+  const c = canvas.getBoundingClientRect();
+  addNode(type, e.clientX - c.left - 50, e.clientY - c.top - 20);
+});
+canvas.addEventListener('click', e => {
+  if (e.target === canvas) {
+    if (pendingLink) { pendingLink=null; resetHint(); }
+    selectedNode=null; document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected')); renderInspector();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// СИМУЛЯЦИЯ
+// ════════════════════════════════════════════════════════════════════════════
+function topoOrder() {
+  // Расчёт в порядке зависимостей; узлы с состоянием (триггеры/таймеры/SEL) используют прошлый такт при циклах
+  const order = [];
+  const visited = {}, temp = {};
+  const incoming = {};
+  links.forEach(l => { (incoming[l.to.node]=incoming[l.to.node]||[]).push(l.from.node); });
+  function visit(id) {
+    if (visited[id]) return;
+    if (temp[id]) return; // цикл — игнорируем (используется прошлое значение)
+    temp[id] = true;
+    (incoming[id]||[]).forEach(src => visit(src));
+    temp[id] = false; visited[id] = true; order.push(id);
+  }
+  nodes.forEach(n => visit(n.id));
+  return order;
+}
+
+function computeStep(advance=true) {
+  const order = topoOrder();
+  const newPort = {};
+  // seed with previous values for cycle handling
+  const prev = {...portValues};
+
+  order.forEach(id => {
+    const node = nodes.find(n=>n.id===id);
+    if (!node) return;
+    const def = BLOCKS[node.type];
+    // gather inputs
+    const inputs = {};
+    nodeIns(node).forEach(p => {
+      const link = links.find(l => l.to.node===id && l.to.port===p.n);
+      let v = 0;
+      if (link) {
+        const key = link.from.node + '.' + link.from.port;
+        v = (newPort[key] !== undefined ? newPort[key] : (prev[key]||0));
+        if (node.invIn[p.n]) v = v?0:1;
+      }
+      inputs[p.n] = v;
+    });
+    const st = simStates[id] || {};
+    const res = def.eval(inputs, node.params, st);
+    if (advance && res.state) simStates[id] = res.state;
+    else if (!simStates[id] && res.state) simStates[id] = res.state;
+    if (res.elapsed !== undefined) node._elapsed = res.elapsed;
+    if (res.remaining !== undefined) { node._remaining = res.remaining; node._T = res.T; node._counting = res.counting; }
+    // outputs (apply inversion)
+    for (const [op, ov] of Object.entries(res.outputs||{})) {
+      let val = ov;
+      if (node.invOut[op]) val = val?0:1;
+      newPort[id + '.' + op] = val;
+    }
+    if (def.isSink) {
+      node._sinkVal = res.sink;
+    }
+  });
+
+  portValues = newPort;
+  paintSim();
+}
+
+function paintSim() {
+  // port value labels
+  nodes.forEach(node => {
+    const def = BLOCKS[node.type];
+    [...nodeIns(node), ...def.outs].forEach(p => {
+      const el = document.getElementById('pv-'+node.id+'-'+p.n);
+      if (!el) return;
+      let v;
+      if (def.outs.find(o=>o.n===p.n)) v = portValues[node.id+'.'+p.n];
+      else {
+        const link = links.find(l => l.to.node===node.id && l.to.port===p.n);
+        v = link ? portValues[link.from.node+'.'+link.from.port] : undefined;
+        if (v!==undefined && node.invIn[p.n]) v = v?0:1;
+      }
+      if (!simRunning || v===undefined) { el.textContent='·'; el.classList.remove('port-val-1'); }
+      else { el.textContent = v; el.classList.toggle('port-val-1', v===1); }
+    });
+    // node highlight by sink
+    const el = document.getElementById(node.id);
+    el.classList.remove('sim-hot','sim-ok');
+    if (simRunning && def.isSink) {
+      el.classList.toggle('sim-hot', node._sinkVal===1);
+      el.classList.toggle('sim-ok', node._sinkVal===0);
+    }
+    // timer progress + output highlight for TON/TOF
+    if (simRunning && (node.type==='TON'||node.type==='TOF')) {
+      const outV = portValues[node.id+'.out'];
+      el.classList.remove('sim-hot','sim-ok','sim-counting');
+      if (outV===1) el.classList.add('sim-hot');
+      if (node._counting) el.classList.add('sim-counting');
+      const pe = el.querySelector('.param');
+      if (pe) {
+        const T = node._T!==undefined ? node._T : (Number(node.params.T)||0);
+        const rem = node._remaining!==undefined ? node._remaining : 0;
+        if (node._counting) {
+          const label = node.type==='TON' ? 'до вкл' : 'до откл';
+          pe.innerHTML = `T=${node.params.T} · <span style="color:var(--warn)">⏱ ${label}: ${rem.toFixed(1)}с</span>`;
+        } else {
+          pe.textContent = `T=${node.params.T} · ${outV===1?'выход=1':'выход=0'}`;
+        }
+      }
+    } else if ((node.type==='TON'||node.type==='TOF')) {
+      const pe = el.querySelector('.param');
+      if (pe) pe.textContent = `T=${node.params.T}`;
+    }
+  });
+  drawWires();
+  // report sinks
+  if (simRunning) {
+    const sinks = nodes.filter(n=>BLOCKS[n.type].isSink);
+    sinks.forEach(s => {
+      const tag = s.params.ext || s.params.kks || s.type;
+      if (s._sinkVal !== s._lastReported) {
+        log(`выход ${tag} = ${s._sinkVal}`, s._sinkVal===1?'hot':'ok');
+        s._lastReported = s._sinkVal;
+      }
+    });
+  }
+}
+
+let lastTickTime = 0;
+function startSim() {
+  if (nodes.length===0) { log('схема пуста — нечего отлаживать', 'warn'); return; }
+  const mode = document.getElementById('simMode').value;
+  simRunning = true; simStates = {}; portValues = {};
+  nodes.forEach(n=>{ n._lastReported=undefined; n._elapsed=undefined; });
+  document.getElementById('btnRun').textContent = '■ стоп';
+  document.getElementById('btnRun').classList.remove('run'); document.getElementById('btnRun').classList.add('stop');
+  DT = 0;                 // первый расчёт без приращения времени
+  computeStep(true);
+  if (mode === 'live') {
+    statusEl.textContent = 'режим: ОТЛАДКА (реальное время)'; statusEl.classList.add('live');
+    log('═══ запуск симуляции в реальном времени ═══', 'info');
+    lastTickTime = performance.now();
+    simTimer = setInterval(()=>{
+      const now = performance.now();
+      DT = (now - lastTickTime) / 1000;   // реально прошедшее время, сек
+      lastTickTime = now;
+      computeStep(true);
+    }, TICK_MS);
+  } else {
+    statusEl.textContent = 'режим: ОТЛАДКА (пошагово)'; statusEl.classList.add('live');
+    log('═══ пошаговая отладка: каждый «шаг ▶» = 0.2 с модельного времени ═══', 'info');
+  }
+}
+function stopSim() {
+  simRunning = false; clearInterval(simTimer); simTimer=null;
+  statusEl.textContent = 'режим: редактирование'; statusEl.classList.remove('live');
+  document.getElementById('btnRun').textContent = '▶ отладка';
+  document.getElementById('btnRun').classList.add('run'); document.getElementById('btnRun').classList.remove('stop');
+  paintSim();
+  log('═══ симуляция остановлена ═══', 'info');
+}
+
+document.getElementById('btnRun').addEventListener('click', () => simRunning ? stopSim() : startSim());
+document.getElementById('btnStep').addEventListener('click', () => {
+  if (!simRunning) {
+    if (nodes.length===0) { log('схема пуста', 'warn'); return; }
+    simRunning=true; simStates={}; portValues={};
+    nodes.forEach(n=>{n._lastReported=undefined; n._elapsed=undefined;});
+    statusEl.textContent='режим: ОТЛАДКА (пошагово)'; statusEl.classList.add('live');
+    document.getElementById('simMode').value='step';
+  }
+  if (simTimer) {
+    clearInterval(simTimer); simTimer=null;
+    document.getElementById('btnRun').textContent='▶ отладка';
+    document.getElementById('btnRun').classList.add('run'); document.getElementById('btnRun').classList.remove('stop');
+  }
+  DT = 0.2;            // фиксированный шаг 0.2 с в пошаговом режиме
+  computeStep(true);
+  log('такт выполнен (+0.2 с)', 'info');
+});
+
+// ── Экспорт / импорт ──────────────────────────────────────────────────────────
+document.getElementById('btnExport').addEventListener('click', () => {
+  const data = JSON.stringify({ nodes, links, nodeSeq, linkSeq }, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'fbd_scheme.json'; a.click();
+  log('схема экспортирована в JSON', 'ok');
+});
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      loadScheme(d); log('схема импортирована из '+f.name, 'ok');
+    } catch(err) { log('ошибка чтения JSON: '+err.message, 'hot'); }
+  };
+  r.readAsText(f);
+});
+
+function clearScheme() {
+  if (simRunning) stopSim();
+  nodes=[]; links=[]; nodeSeq=1; linkSeq=1; selectedNode=null;
+  canvas.innerHTML=''; wiresSvg.innerHTML=''; renderInspector();
+}
+function loadScheme(d) {
+  clearScheme();
+  nodes = d.nodes||[]; links = d.links||[];
+  nodeSeq = d.nodeSeq||(nodes.length+1); linkSeq = d.linkSeq||(links.length+1);
+  nodes.forEach(n => { n.invOut=n.invOut||{}; n.invIn=n.invIn||{}; renderNode(n); });
+  setTimeout(drawWires, 30);
+}
+
+document.getElementById('btnClear').addEventListener('click', () => { clearScheme(); log('схема очищена', 'warn'); });
+
+// ── Удаление по Delete ──────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.key==='Delete'||e.key==='Backspace') && selectedNode && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='SELECT') {
+    deleteNode(selectedNode);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Пример: фрагмент алгоритма 10PAC10EE001 (группа A2 + выход XK13)
+// ════════════════════════════════════════════════════════════════════════════
+function loadSample() {
+  clearScheme();
+  // Группа A2: 3 датчика T сердечника + SEL3.B + AND -> CROSS.LINK.OUT XK13
+  const x1 = addNode('CROSS.LINK.IN', 40, 60);  x1.params={kks:'10PAC10CT001',ext:'XH03',limit:'>140',value:0};
+  const x2 = addNode('CROSS.LINK.IN', 40, 160); x2.params={kks:'10PAC10CT002',ext:'XH03',limit:'>140',value:0};
+  const x3 = addNode('CROSS.LINK.IN', 40, 260); x3.params={kks:'10PAC10CT003',ext:'XH03',limit:'>140',value:0};
+  const sel = addNode('SEL3.B', 280, 120); sel.params={T:1.0};
+  const orb = addNode('OR', 500, 150); orb.dynInCount=2;
+  const out = addNode('CROSS.LINK.OUT', 680, 160); out.params={kks:'10CMT31',ext:'XK13',desc:'СРАБ 1 ИЗ 3'};
+
+  [x1,x2,x3,sel,orb,out].forEach(renderNode);
+
+  links.push({id:'l'+(linkSeq++), from:{node:x1.id,port:'out'}, to:{node:sel.id,port:'BI1'}});
+  links.push({id:'l'+(linkSeq++), from:{node:x2.id,port:'out'}, to:{node:sel.id,port:'BI2'}});
+  links.push({id:'l'+(linkSeq++), from:{node:x3.id,port:'out'}, to:{node:sel.id,port:'BI3'}});
+  // Срабатывание при 2 из 3 ИЛИ 3 из 3
+  links.push({id:'l'+(linkSeq++), from:{node:sel.id,port:'IN2V3'}, to:{node:orb.id,port:'BI1'}});
+  links.push({id:'l'+(linkSeq++), from:{node:sel.id,port:'IN3V3'}, to:{node:orb.id,port:'BI2'}});
+  links.push({id:'l'+(linkSeq++), from:{node:orb.id,port:'out'}, to:{node:out.id,port:'in'}});
+
+  setTimeout(drawWires, 30);
+  log('загружен пример: группа A2 (T сердечника) → SEL3.B → OR(IN2V3,IN3V3) → XK13', 'ok');
+  log('включите 2 из 3 датчиков (XH03) в инспекторе и нажмите «отладка» — IN2V3=1 → XK13=1', 'info');
+}
+
+document.getElementById('btnSample').addEventListener('click', loadSample);
+
+// ════════════════════════════════════════════════════════════════════════════
+// АВТОСОХРАНЕНИЕ (постоянное хранилище артефакта, переживает перезагрузку)
+// ════════════════════════════════════════════════════════════════════════════
+const STORAGE_KEY = 'fbd:scheme';
+let saveTimer = null;
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(autosave, 600);
+}
+async function autosave() {
+  try {
+    if (typeof window.storage === 'undefined') return;
+    const data = JSON.stringify({ nodes, links, nodeSeq, linkSeq });
+    await window.storage.set(STORAGE_KEY, data, false);
+    statusEl.dataset.saved = '1';
+  } catch(e) { /* storage may be unavailable */ }
+}
+async function tryLoadSaved() {
+  try {
+    if (typeof window.storage === 'undefined') return false;
+    const r = await window.storage.get(STORAGE_KEY, false);
+    if (r && r.value) {
+      const d = JSON.parse(r.value);
+      if (d.nodes && d.nodes.length) { loadScheme(d); log('восстановлена сохранённая схема', 'ok'); return true; }
+    }
+  } catch(e) { /* no saved data */ }
+  return false;
+}
+
+// ── init ──────────────────────────────────────────────────────────────────
+buildPalette();
+(async () => {
+  const restored = await tryLoadSaved();
+  if (!restored) loadSample();
+})();
+window.addEventListener('resize', drawWires);
+
+</script>
 </body>
 </html>
